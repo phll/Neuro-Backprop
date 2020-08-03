@@ -1,0 +1,8 @@
+.ipynb*
+__pycache__
+.idea
+backprop/plots
+backprop/runs/**/tmp
+backprop/runs/test
+backprop/runs/**/config
+backprop/runs/**/results/*.png
