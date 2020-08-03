@@ -9,7 +9,7 @@ do
   then
     dir_res="$line"
   else
-    python $( ws_find Neural-Learning )/Neural-Learning/backprop/PyraLNet.py "yinyang" --config "$line" --dir "$dir_res" &
+    python $( ws_find Neural-Learning )/Neuro-Backprop/backprop/PyraLNet.py "yinyang" --config "$line" --dir "$dir_res" &
   fi
   i=$((i+1))
 done < "$1"

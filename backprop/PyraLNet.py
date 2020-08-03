@@ -8,16 +8,17 @@ import fcntl
 dtype = np.float32
 
 class Layer:
-    def __init__(self, N_pyr, N_in, N_next, eta, params, act, bias, bias_val):
+    def __init__(self, N_pyr, N_in, N_next, eta, params, act, bias_on_pyr, bias_on_inter, bias_val):
         self.u_pyr = {"basal": np.zeros(N_pyr, dtype=dtype), "apical": np.zeros(N_pyr, dtype=dtype), "soma": np.zeros(N_pyr, dtype=dtype)}
         self.u_inn = {"dendrite": np.zeros(N_next, dtype=dtype), "soma": np.zeros(N_next, dtype=dtype)}
 
-        self.W_up = (np.random.sample((N_pyr, N_in+bias)).astype(dtype) - 0.5) * 2 * params["init_weights"]["up"]
+        self.W_up = (np.random.sample((N_pyr, N_in+bias_on_pyr)).astype(dtype) - 0.5) * 2 * params["init_weights"]["up"]
         self.W_down = (np.random.sample((N_pyr, N_next)).astype(dtype) - 0.5) * 2 * params["init_weights"]["down"]
         self.W_pi = (np.random.sample((N_pyr, N_next)).astype(dtype) - 0.5) * 2 * params["init_weights"]["pi"]
-        self.W_ip = (np.random.sample((N_next, N_pyr+bias)).astype(dtype) - 0.5) * 2 * params["init_weights"]["ip"]
+        self.W_ip = (np.random.sample((N_next, N_pyr+bias_on_inter)).astype(dtype) - 0.5) * 2 * params["init_weights"]["ip"]
 
-        self.bias = bias
+        self.bias_on_pyr = bias_on_pyr
+        self.bias_on_inter = bias_on_inter
         self.bias_val = bias_val
 
         self.Delta_up = np.zeros((N_pyr, N_in+bias), dtype=dtype)
@@ -47,18 +48,16 @@ class Layer:
     def update(self, r_in, u_next, learning_on, noise_on=True):
 
         #### rates
-        r_pyr = np.zeros(self.u_pyr["soma"].shape[0] + self.bias, dtype=dtype)
-        r_in_buf = np.zeros(r_in.shape[0] + self.bias, dtype=dtype)
+        r_pyr = np.zeros(self.u_pyr["soma"].shape[0] + self.bias_on_inter, dtype=dtype)
+        r_in_buf = np.zeros(r_in.shape[0] + self.bias_on_pyr, dtype=dtype)
         r_inn = self.act(self.u_inn["soma"])
         r_next = self.act(u_next)
-        if self.bias:
-            r_in_buf[:-1] = r_in
+        r_in_buf[: len(r_in)] = r_in
+        r_pyr[: len(self.u_pyr["soma"])] = self.act(self.u_pyr["soma"])
+        if self.bias_on_pyr:
             r_in_buf[-1] = self.bias_val
-            r_pyr[:-1] = self.act(self.u_pyr["soma"])
+        if self.bias_on_inter:
             r_pyr[-1] = self.bias_val
-        else:
-            self.r_in_buf = r_in
-            r_pyr = self.act(self.u_pyr["soma"])
 
         ####compute dendritic potentials at current time
 
@@ -211,18 +210,19 @@ class Net:
         else:
             self.act = act
         dims = params["dims"]
-        bias = params["bias"]["on"]
+        bias_on_pyr = params["bias"]["pyr_on"]
+        bias_on_inter = params["bias"]["inter_on"]
         bias_val = params["bias"]["val"]
         eta = {}
         for n in range(1, len(dims) - 1):
             eta["up"] = params["eta"]["up"][n - 1]
             eta["pi"] = params["eta"]["pi"][n - 1]
             eta["ip"] = params["eta"]["ip"][n - 1]
-            self.layer += [Layer(dims[n], dims[n - 1], dims[n + 1], eta, params, self.act, bias, bias_val)]
+            self.layer += [Layer(dims[n], dims[n - 1], dims[n + 1], eta, params, self.act, bias_on_pyr, bias_on_inter, bias_val)]
         eta["up"] = params["eta"]["up"][-1]
         eta["pi"] = params["eta"]["pi"][-1]
         eta["ip"] = params["eta"]["ip"][-1]
-        self.layer += [OutputLayer(dims[-1], dims[-2], eta, params, self.act, bias, bias_val)]
+        self.layer += [OutputLayer(dims[-1], dims[-2], eta, params, self.act, bias_on_pyr, bias_val)]
         print("feedback-couplings: lambda_out = %f, lambda_inter = %f, lambda_hidden = %f"
               % (params["gsom"] / (params["gl"] + params["gb"] + params["gsom"]),
                  params["gsom"] / (params["gl"] + params["gd"] + params["gsom"]),
@@ -233,7 +233,8 @@ class Net:
             l = self.layer[i]
             l_n = self.layer[i + 1]
             l.W_pi = - l.W_down.copy()
-            l.W_ip = l_n.W_up.copy() * l_n.gb / (l_n.gl + l_n.ga + l_n.gb) * (l.gl + l.gd) / l.gd
+            cols = min(l.W_pi.shape[1], l_n.W_up.shape[1]) # due to biases the column length of W_ip and W_up (next level) might differ
+            l.W_ip[:, :cols] = l_n.W_up[:, :cols].copy() * l_n.gb / (l_n.gl + l_n.ga + l_n.gb) * (l.gl + l.gd) / l.gd
 
     def update_params(self, params):
         for key, item in params.items():
@@ -543,7 +544,7 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
 
     params = {"dims": [N_in, N_hidden, N_out], "dt": 0.1, "gl": gl, "gb": gb, "ga": ga, "gd": gd, "gsom": gsom,
               "eta": {"up": [0.01, 0.005], "pi": [0.01, 0], "ip": [0.01, 0]},
-              "bias": {"on": False, "val": 0.0},
+              "bias": {"pyr_on": False, "inter_on": False, "val": 0.0},
               "init_weights": {"up": 1, "down": 1, "pi": 1, "ip": 1}, "tau_w": 30, "noise": 0, "t_pattern": 100,
               "out_lag": 3 * 10, "tau_0": 3, "learning_lag": 0}
     net = Net(params, act)
@@ -622,7 +623,73 @@ def bars_task(square_size=3, N_train=3000, N_test=300, n_epochs=2, N_hidden=30):
     params = {"dims": [square_size ** 2, N_hidden, 3], "dt": 0.1, "gl": 0.1, "gb": 1.0, "ga": 0.8, "gd": 1.0,
               "gsom": 0.8,
               "eta": {"up": [0.01, 0.005], "pi": [0.01, 0], "ip": [0.01, 0]},
-              "bias": {"on": False, "val": 0.0},
+              "bias": {"pyr_on": False, "inter_on": False, "val": 0.0},
+              "init_weights": {"up": 0.4, "down": 1, "pi": 0.5, "ip": 0.5}, "tau_w": 30, "noise": 0, "t_pattern": 100,
+              "out_lag": 80, "tau_0": 3, "learning_lag":0}
+    net = Net(params)
+
+    #self-predicting state
+    print("----learning self-predicting state----")
+    rec_pots = [["W_up", "W_ip", "W_pi"], ["W_up"]]
+    records, T, r_in, out_seq = net.run(X_train[np.random.permutation(N_train)], rec_pots=rec_pots, rec_dt=100)
+
+    plt.title("Lateral Weights Convergence")
+    plt.semilogy(T / 100, np.sum((records[0]["W_ip"].data - records[1]["W_up"].data) ** 2, axis=(1, 2)),
+                 label="$||W^{(0)}_{ip}-W^{(1)}_{up}||^2$")
+    plt.semilogy(T / 100, np.sum((records[0]["W_pi"].data + net.layer[0].W_down) ** 2, axis=(1, 2)),
+                 label="$||W^{(0)}_{pi}+W^{(0)}_{down}||^2$")
+    plt.xlabel("trial")
+    plt.ylabel("squared error")
+    plt.legend()
+    plt.savefig("plots/PyraLNet/bar_task/lateral weights convergence.png")
+    plt.show()
+
+
+    #training
+    print("----training----")
+    records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=n_epochs, val_len=20, vals_per_epoch=15,
+                                 n_features=square_size ** 2,
+                                 n_out=3, classify=True, u_high=1.0, u_low=0.1, metric=accuracy, rec_pots=rec_pots, rec_dt=400)
+
+    # plot exponential moving average of validation error
+    plt.title("Validation error during training")
+    plt.semilogy(val_res[:, 0], ewma(val_res[:, 1], round(len(val_res) / 10)), label="mse")
+    plt.xlabel("trial")
+    plt.ylabel("mean squared error")
+    ax2 = plt.gca().twinx()
+    ax2.plot(val_res[:, 0], ewma(val_res[:, 2], round(len(val_res) / 10)), c="g", label="accuracy")
+    ax2.set_ylabel("accuracy")
+    plt.savefig("plots/PyraLNet/bar_task/validation and accuracy during training.png")
+    plt.show()
+
+    plt.title("Lateral Weights Convergence")
+    plt.semilogy(T / 100, np.sum((records[0]["W_ip"].data - records[1]["W_up"].data) ** 2, axis=(1, 2)),
+                 label="$||W^{(0)}_{ip}-W^{(1)}_{up}||^2$")
+    plt.semilogy(T / 100, np.sum((records[0]["W_pi"].data + net.layer[0].W_down) ** 2, axis=(1, 2)),
+                 label="$||W^{(0)}_{pi}+W^{(0)}_{down}||^2$")
+    plt.xlabel("trial")
+    plt.ylabel("squared error")
+    plt.legend()
+    plt.savefig("plots/PyraLNet/bar_task/lateral weights convergence during training.png")
+    plt.show()
+
+
+    # test run
+    print("----testing----")
+    out_seq_test = net.run(X_test)
+    y_pred = np.argmax(out_seq_test, axis=1)
+    acc = np.sum(y_pred == Y_test) / len(Y_test)
+    print("test set accuracy: %f" % (acc))
+
+
+def bars_task(square_size=3, N_train=3000, N_test=300, n_epochs=2, N_hidden=30):
+    X_train, Y_train = Dataset.BarsDataset(square_size, samples_per_class=round(N_train / square_size))[:]
+    X_val, Y_val = Dataset.BarsDataset(square_size, samples_per_class=round(N_test / square_size))[:]
+    X_test, Y_test = Dataset.BarsDataset(square_size, samples_per_class=round(N_test / square_size))[:]
+    params = {"dims": [square_size ** 2, N_hidden, 3], "dt": 0.1, "gl": 0.1, "gb": 1.0, "ga": 0.8, "gd": 1.0,
+              "gsom": 0.8,
+              "eta": {"up": [0.01, 0.005], "pi": [0.01, 0], "ip": [0.01, 0]},
+              "bias": {"pyr_on": False, "inter_on": False, "val": 0.0},
               "init_weights": {"up": 0.4, "down": 1, "pi": 0.5, "ip": 0.5}, "tau_w": 30, "noise": 0, "t_pattern": 100,
               "out_lag": 80, "tau_0": 3, "learning_lag":0}
     net = Net(params)
@@ -682,14 +749,14 @@ def bars_task(square_size=3, N_train=3000, N_test=300, n_epochs=2, N_hidden=30):
 
 
 
-def yinyang_task(N_train=6000, N_test=600, n_epochs=12000, N_hidden=120, mul=0.2):
+def yinyang_task(N_train=6000, N_test=600, n_epochs=45, N_hidden=120, mul=0.2):
     X_train, Y_train = Dataset.YinYangDataset(bottom_left=0, top_right=1, size=N_train, flipped_coords=True)[:]
     X_val, Y_val = Dataset.YinYangDataset(bottom_left=0, top_right=1, size=N_test, flipped_coords=True)[:]
     X_test, Y_test = Dataset.YinYangDataset(bottom_left=0, top_right=1, size=N_test, flipped_coords=True)[:]
     params = {"dims": [4, N_hidden, 3], "dt": 0.1, "gl": 0.1, "gb": 1.0, "ga": 0.8, "gd": 1.0,
               "gsom": 0.1,  ###################changed!
               "eta": {"up": [mul * 0.03, mul * 0.01], "pi": [0, 0], "ip": [mul * 0.02, 0]},
-              "bias": {"on": True, "val": 0.5},
+              "bias": {"pyr_on": False, "inter_on": False, "val": 0.0},
               "init_weights": {"up": 0.1, "down": 1, "pi": 1, "ip": 1}, "tau_w": 30, "noise": 0, "t_pattern": 100,
               "out_lag": 80, "tau_0": 3, "learning_lag": 0}
     net = Net(params, act=sigmoid)
@@ -719,6 +786,86 @@ def yinyang_task(N_train=6000, N_test=600, n_epochs=12000, N_hidden=120, mul=0.2
 
 
 
+# cluster version
+
+def run_bars(params, name, dir):
+    X_train, Y_train = Dataset.BarsDataset(params["square_size"], samples_per_class=round(params["N_train"] / square_size))[:]
+    X_val, Y_val = Dataset.BarsDataset(params["square_size"], samples_per_class=round(params["N_val"] / square_size))[:]
+    X_test, Y_test = Dataset.BarsDataset(params["square_size"], samples_per_class=round(params["N_test"] / square_size))[:]
+    if params["model"]["act"] == "sigmoid":
+        act = sigmoid
+    elif params["model"]["act"] == "softReLU":
+        act = soft_relu
+    net = Net(params["model"], act=act, seed=None)
+
+    if params["init_sps"]:
+        net.reflect()
+
+    rec_pots = [["W_up", "W_ip", "W_pi"], ["W_up"]]
+    if params["track_sps"]:
+        # self-predicting state
+        print("----learning self-predicting state----")
+        records, T, r_in, out_seq = net.run(X_train, rec_pots=rec_pots, rec_dt=100)
+
+        plt.title("Lateral Weights Convergence pre-training")
+        plt.semilogy(T / 100, np.sum((records[0]["W_ip"].data - records[1]["W_up"].data) ** 2, axis=(1, 2)),
+                     label="$||W^{(0)}_{ip}-W^{(1)}_{up}||^2$")
+        plt.semilogy(T / 100, np.sum((records[0]["W_pi"].data + net.layer[0].W_down) ** 2, axis=(1, 2)),
+                     label="$||W^{(0)}_{pi}+W^{(0)}_{down}||^2$")
+        plt.xlabel("trial")
+        plt.ylabel("squared error")
+        plt.legend()
+        plt.savefig(dir + "lat_weights_conv_pre_%s.png" % (name))
+        plt.clf()
+
+    records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=params["N_epochs"],
+                                                           val_len=params["val_len"],
+                                                           vals_per_epoch=params["vals_per_epoch"],
+                                                           n_features=4,
+                                                           n_out=3, classify=True, u_high=1.0, u_low=0.1,
+                                                           metric=accuracy, rec_pots=rec_pots, rec_dt=1000)
+
+    if params["track_sps"]:
+        plt.title("Lateral Weights Convergence during training")
+        plt.semilogy(T / 100, np.sum((records[0]["W_ip"].data - records[1]["W_up"].data) ** 2, axis=(1, 2)),
+                     label="$||W^{(0)}_{ip}-W^{(1)}_{up}||^2$")
+        plt.semilogy(T / 100, np.sum((records[0]["W_pi"].data + net.layer[0].W_down) ** 2, axis=(1, 2)),
+                     label="$||W^{(0)}_{pi}+W^{(0)}_{down}||^2$")
+        plt.xlabel("trial")
+        plt.ylabel("squared error")
+        plt.legend()
+        plt.savefig(dir + "lat_weights_conv_during_%s.png" % (name))
+        plt.clf()
+
+    # plot exponential moving average of validation error
+    plt.semilogy(val_res[:, 0], ewma(val_res[:, 1], round(len(val_res) / 10)), label="mse")
+    plt.xlabel("trial")
+    plt.ylabel("mean squared error")
+    ax2 = plt.gca().twinx()
+    ax2.plot(val_res[:, 0], ewma(val_res[:, 2], round(len(val_res) / 10)), c="g", label="accuracy")
+    ax2.set_ylabel("accuracy")
+
+    # validate on full validation set
+    out_seq_test = net.run(X_val, learning_off=True)
+    y_pred = np.argmax(out_seq_test, axis=1)
+    acc_val = np.sum(y_pred == Y_val) / len(Y_val)
+    print("validation set accuracy : %f " % (acc_val))
+
+    # test run
+    out_seq_test = net.run(X_test, learning_off=True)
+    y_pred = np.argmax(out_seq_test, axis=1)
+    acc_test = np.sum(y_pred == Y_test) / len(Y_test)
+    print("test set accuracy : %f " % (acc_test))
+
+    plt.subtitle("validation/test set accuracy: %.4f/%.4f" % (acc_val, acc_test))
+    plt.tight_layout()
+    plt.savefig(dir + "result_%s.png" % (name))
+
+    with open(dir + "results.txt", "a") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        f.write("%s\t\t\t%f\t\t%f\t\t%f\n" % (name, val_res[-1, 1], acc_val, acc_test))
+        fcntl.flock(f, fcntl.LOCK_UN)
+
 def run_yinyang(params, name, dir):
     X_train, Y_train = Dataset.YinYangDataset(bottom_left=0, top_right=1, size=params["N_train"], flipped_coords=True, seed=params["seed"])[:]
     X_val, Y_val = Dataset.YinYangDataset(bottom_left=0, top_right=1, size=params["N_val"], flipped_coords=True, seed=None)[:]
@@ -729,9 +876,11 @@ def run_yinyang(params, name, dir):
         act = soft_relu
     net = Net(params["model"], act=act, seed=None)
 
-    track_sps = not params["init_sps"]
+    if params["init_sps"]:
+        net.reflect()
+
     rec_pots = [["W_up", "W_ip", "W_pi"], ["W_up"]]
-    if track_sps:
+    if params["track_sps"]:
         #self-predicting state
         print("----learning self-predicting state----")
         records, T, r_in, out_seq = net.run(X_train, rec_pots=rec_pots, rec_dt=100)
@@ -746,14 +895,12 @@ def run_yinyang(params, name, dir):
         plt.legend()
         plt.savefig(dir+"lat_weights_conv_pre_%s.png" % (name))
         plt.clf()
-    else:
-        net.reflect()
 
     records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=params["N_epochs"], val_len=params["val_len"], vals_per_epoch=params["vals_per_epoch"],
                                  n_features=4,
                                  n_out=3, classify=True, u_high=1.0, u_low=0.1, metric=accuracy, rec_pots=rec_pots, rec_dt=1000)
 
-    if track_sps:
+    if params["track_sps"]:
         plt.title("Lateral Weights Convergence during training")
         plt.semilogy(T / 100, np.sum((records[0]["W_ip"].data - records[1]["W_up"].data) ** 2, axis=(1, 2)),
                      label="$||W^{(0)}_{ip}-W^{(1)}_{up}||^2$")
