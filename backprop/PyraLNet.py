@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 import Dataset
+from pathlib import Path
 import fcntl
 
 
@@ -210,6 +211,7 @@ class Net:
         else:
             self.act = act
         dims = params["dims"]
+        self.dims = dims
         bias_on_pyr = params["bias"]["pyr_on"]
         bias_on_inter = params["bias"]["inter_on"]
         bias_val = params["bias"]["val"]
@@ -407,13 +409,26 @@ class Net:
             ret += [np.array(val_res, dtype=dtype)]
         return tuple(ret) if len(ret)>1 else ret[0]
 
-    def train(self, X_train, Y_train, X_val, Y_val, n_epochs, val_len, n_features, n_out, classify, u_high=1.0,
+    def train(self, X_train, Y_train, X_val, Y_val, n_epochs, val_len, n_out, classify, u_high=1.0,
               u_low=0.1, rec_pots=None, rec_dt=0.0,
               vals_per_epoch=1, reset_weights=False, info_update=100, metric=None):
 
         assert len(X_train) > vals_per_epoch
-        assert X_train.shape[1] == n_features
-        assert X_val.shape[1] == n_features
+        assert len(X_train) == len(Y_train)
+        assert len(X_val) == len(Y_val)
+
+        n_features = X_train.shape[1]
+
+        assert n_features == X_val.shape[1]
+        assert n_features == self.dims[0]
+        assert n_out == self.dims[-1]
+
+        if classify:
+            assert len(Y_train.shape) == 1
+            assert len(Y_val.shape) == 1
+        else:
+            assert (len(Y_train.shape) == 1 and n_out==1) or Y_train.shape[1] == n_out
+            assert (len(Y_val.shape) == 1 and n_out==1) or Y_val.shape[1] == n_out
 
         len_split_train = round(len(X_train) / vals_per_epoch)  # validation after each split
         vals_per_epoch = len(X_train) // len_split_train
@@ -446,7 +461,7 @@ class Net:
                 right = left + right_tr - left_tr
                 r_in_seq[left: right] = X_train[perm_train[left_tr:right_tr]]
                 if classify:
-                    target_seq[np.arange(left,right), Y_train[perm_train[left_tr:right_tr]]] = u_high
+                    target_seq[np.arange(left,right), 1*Y_train[perm_train[left_tr:right_tr]]] = u_high # enforce Y_train is an integer array!
                 else:
                     target_seq[left:right] = Y_train[perm_train[left_tr:right_tr]]
                 perm_val = np.random.permutation(len(X_val))[:val_len]
@@ -454,7 +469,7 @@ class Net:
                 right = left + val_len
                 r_in_seq[left: right] = X_val[perm_val]
                 if classify:
-                    target_seq[np.arange(left,right), Y_val[perm_val]] = u_high
+                    target_seq[np.arange(left,right), 1*Y_val[perm_val]] = u_high # enforce Y_val is an integer array!
                 else:
                     target_seq[left:right] = Y_val[perm_val]
                 nudging_on[left: right, 0] = False
@@ -538,6 +553,8 @@ def accuracy(pred, true):
     return "accuracy", acc
 
 def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
+    Path("plots/PyraLNet/mimic_task").mkdir(parents=True, exist_ok=True)
+
     # test task: Learn to mimic simple forward network
     W_21 = np.random.sample((N_out, N_hidden)) * 2 - 1
     W_10 = np.random.sample((N_hidden, N_in)) * 2 - 1
@@ -563,7 +580,7 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
     rec_pots = [["pyr_soma", "pyr_apical", "inn_soma", "W_up", "W_ip", "W_pi"],
                 ["pyr_soma", "W_up"]]
     records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=n_epochs,
-                                                           val_len=8, n_features=N_in,
+                                                           val_len=8,
                                                            n_out=N_out, classify=False, vals_per_epoch=10,
                                                            rec_pots=rec_pots, rec_dt=0.5*N * n_epochs)
 
@@ -627,10 +644,53 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
     plt.show()
 
 
+
+def sine_task(N_train=1000, N_test=500, n_epochs=10, N_hidden=40, bias_pyr=False, bias_inter=False):
+    Path('plots/PyraLNet/sine_task').mkdir(parents=True, exist_ok=True)
+
+    X_train, Y_train = Dataset.SineDataset(size=N_train, flipped_coords=True, seed=42)[:]
+    X_val, Y_val = Dataset.SineDataset(size=N_test, flipped_coords=True, seed=None)[:]
+    X_test, Y_test = Dataset.SineDataset(bottom_left=0, top_right=1, size=N_test, flipped_coords=True, seed=None)[:]
+    params = {"dims": [4, N_hidden, 2], "dt": 0.1, "gl": 0.1, "gb": 1.0, "ga": 0.8, "gd": 1.0,
+              "gsom": 0.8,
+              "eta": {"up": [0.2, 0.002], "pi": [0, 0], "ip": [2*0.002, 0]},
+              "bias": {"pyr_on": bias_pyr, "inter_on": bias_inter, "val": 0.5},
+              "init_weights": {"up": 0.1, "down": 1, "pi": 1, "ip": 0.1}, "tau_w": 30, "noise": 0, "t_pattern": 100,
+              "out_lag": 80, "tau_0": 3, "learning_lag": 0}
+    net = Net(params, act=sigmoid)
+    net.reflect()
+
+    out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=n_epochs, val_len=40, vals_per_epoch=5,
+                                 n_out=2, classify=True, u_high=1.0, u_low=0.1, metric=accuracy)
+
+    # plot exponential moving average of validation error
+    plt.title("Validation error during training")
+    plt.semilogy(val_res[:, 0], ewma(val_res[:, 1], round(len(val_res) / 10)), label="mse")
+    plt.xlabel("trial")
+    plt.ylabel("mean squared error")
+    ax2 = plt.gca().twinx()
+    ax2.plot(val_res[:, 0], ewma(val_res[:, 2], round(len(val_res) / 10)), c="g", label="accuracy")
+    ax2.set_ylabel("accuracy")
+    plt.savefig("plots/PyraLNet/sine_task/validation and accuracy during training (pyr, inter)=(%d,%d).png"%(bias_pyr, bias_inter))
+    plt.clf()
+
+    # test run
+    out_seq_test = net.run(X_test)
+    y_pred = np.argmax(out_seq_test, axis=1)
+    acc = np.sum(y_pred == Y_test) / len(Y_test)
+    print("test set accuracy: %f" % (acc))
+    Dataset.plot_sine(X_test, y_pred)
+    plt.title("accuracy %f"%(acc))
+    plt.savefig("plots/PyraLNet/sine_task/test (pyr, inter)=(%d,%d).png"%(bias_pyr, bias_inter))
+    plt.clf()
+
+
 def bars_task(square_size=3, N_train=3000, N_test=300, n_epochs=2, N_hidden=30):
-    X_train, Y_train = Dataset.BarsDataset(square_size, samples_per_class=round(N_train / square_size))[:]
-    X_val, Y_val = Dataset.BarsDataset(square_size, samples_per_class=round(N_test / square_size))[:]
-    X_test, Y_test = Dataset.BarsDataset(square_size, samples_per_class=round(N_test / square_size))[:]
+    Path("plots/PyraLNet/bars_task").mkdir(parents=True, exist_ok=True)
+
+    X_train, Y_train = Dataset.BarsDataset(square_size, samples_per_class=round(N_train / square_size), seed=42)[:]
+    X_val, Y_val = Dataset.BarsDataset(square_size, samples_per_class=round(N_test / square_size), seed=None)[:]
+    X_test, Y_test = Dataset.BarsDataset(square_size, samples_per_class=round(N_test / square_size), seed=None)[:]
     params = {"dims": [square_size ** 2, N_hidden, 3], "dt": 0.1, "gl": 0.1, "gb": 1.0, "ga": 0.8, "gd": 1.0,
               "gsom": 0.8,
               "eta": {"up": [0.01, 0.005], "pi": [0.01, 0], "ip": [0.01, 0]},
@@ -659,7 +719,6 @@ def bars_task(square_size=3, N_train=3000, N_test=300, n_epochs=2, N_hidden=30):
     #training
     print("----training----")
     records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=n_epochs, val_len=20, vals_per_epoch=15,
-                                 n_features=square_size ** 2,
                                  n_out=3, classify=True, u_high=1.0, u_low=0.1, metric=accuracy, rec_pots=rec_pots, rec_dt=400)
 
     # plot exponential moving average of validation error
@@ -695,9 +754,11 @@ def bars_task(square_size=3, N_train=3000, N_test=300, n_epochs=2, N_hidden=30):
 
 
 def yinyang_task(N_train=6000, N_test=600, n_epochs=45, N_hidden=120, mul=0.2):
-    X_train, Y_train = Dataset.YinYangDataset(bottom_left=0, top_right=1, size=N_train, flipped_coords=True)[:]
-    X_val, Y_val = Dataset.YinYangDataset(bottom_left=0, top_right=1, size=N_test, flipped_coords=True)[:]
-    X_test, Y_test = Dataset.YinYangDataset(bottom_left=0, top_right=1, size=N_test, flipped_coords=True)[:]
+    Path("plots/PyraLNet/yinyang_task").mkdir(parents=True, exist_ok=True)
+
+    X_train, Y_train = Dataset.YinYangDataset(size=N_train, flipped_coords=True, seed=42)[:]
+    X_val, Y_val = Dataset.YinYangDataset(size=N_test, flipped_coords=True, seed=None)[:]
+    X_test, Y_test = Dataset.YinYangDataset(size=N_test, flipped_coords=True, seed=None)[:]
     params = {"dims": [4, N_hidden, 3], "dt": 0.1, "gl": 0.1, "gb": 1.0, "ga": 0.8, "gd": 1.0,
               "gsom": 0.1,  ###################changed!
               "eta": {"up": [mul * 0.03, mul * 0.01], "pi": [0, 0], "ip": [mul * 0.02, 0]},
@@ -707,7 +768,7 @@ def yinyang_task(N_train=6000, N_test=600, n_epochs=45, N_hidden=120, mul=0.2):
     net = Net(params, act=sigmoid)
     net.reflect()
 
-    out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=n_epochs, val_len=30, vals_per_epoch=15, n_features=4,
+    out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=n_epochs, val_len=30, vals_per_epoch=15,
                                                       n_out=3, classify=True, u_high=1.0, u_low=0.1, metric=accuracy)
 
     # plot exponential moving average of validation error
@@ -727,17 +788,18 @@ def yinyang_task(N_train=6000, N_test=600, n_epochs=45, N_hidden=120, mul=0.2):
     acc = np.sum(y_pred == Y_test) / len(Y_test)
     print("test set accuracy: %f" % (acc))
     Dataset.plot_yy(X_test, y_pred)
+    plt.title("accuracy %f" % (acc))
+    plt.savefig("plots/PyraLNet/yinyang_task/test.png")
     plt.show()
 
 
 
 # cluster version
 
-def run_bars(params, name, dir):
-    square_size = params["square_size"]
-    X_train, Y_train = Dataset.BarsDataset(square_size, samples_per_class=round(params["N_train"] / square_size), seed=params["seed"])[:]
-    X_val, Y_val = Dataset.BarsDataset(square_size, samples_per_class=round(params["N_val"] / square_size), seed=None)[:]
-    X_test, Y_test = Dataset.BarsDataset(square_size, samples_per_class=round(params["N_test"] / square_size), seed=None)[:]
+def run_sine(params, name, dir):
+    X_train, Y_train = Dataset.SineDataset(size=params["N_train"], flipped_coords=True, seed=params["seed"])[:]
+    X_val, Y_val = Dataset.SineDataset(size=params["N_val"], flipped_coords=True, seed=None)[:]
+    X_test, Y_test = Dataset.SineDataset(size=params["N_test"], flipped_coords=True, seed=None)[:]
     if params["model"]["act"] == "sigmoid":
         act = sigmoid
     elif params["model"]["act"] == "softReLU":
@@ -767,8 +829,7 @@ def run_bars(params, name, dir):
     records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=params["N_epochs"],
                                                            val_len=params["val_len"],
                                                            vals_per_epoch=params["vals_per_epoch"],
-                                                           n_features=square_size**2,
-                                                           n_out=3, classify=True, u_high=1.0, u_low=0.1,
+                                                           n_out=2, classify=True, u_high=1.0, u_low=0.1,
                                                            metric=accuracy, rec_pots=rec_pots, rec_dt=1000)
 
     if params["track_sps"]:
@@ -783,11 +844,14 @@ def run_bars(params, name, dir):
         plt.savefig(dir + "lat_weights_conv_during_%s.png" % (name))
         plt.clf()
 
+    f, (a0, a1) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [3, 2]}, figsize=(11, 5))
+
     # plot exponential moving average of validation error
-    plt.semilogy(val_res[:, 0], ewma(val_res[:, 1], round(len(val_res) / 10)), label="mse")
-    plt.xlabel("trial")
-    plt.ylabel("mean squared error")
-    ax2 = plt.gca().twinx()
+    a0.set_title("Validation error during training %s" % (name))
+    a0.semilogy(val_res[:, 0], ewma(val_res[:, 1], round(len(val_res) / 10)), label="mse")
+    a0.set_xlabel("trial")
+    a0.set_ylabel("mean squared error")
+    ax2 = a0.twinx()
     ax2.plot(val_res[:, 0], ewma(val_res[:, 2], round(len(val_res) / 10)), c="g", label="accuracy")
     ax2.set_ylabel("accuracy")
 
@@ -800,10 +864,11 @@ def run_bars(params, name, dir):
     # test run
     out_seq_test = net.run(X_test, learning_off=True)
     y_pred = np.argmax(out_seq_test, axis=1)
-    acc_test = np.sum(y_pred == Y_test) / len(Y_test)
-    print("test set accuracy : %f " % (acc_test))
+    acc = np.sum(y_pred == Y_test) / len(Y_test)
+    print("test set accuracy : %f " % (acc))
+    Dataset.plot_yy(X_test, y_pred, ax=a1)
+    a1.set_title("test accuracy = %f" % (acc))
 
-    plt.suptitle("val/test set acc: %.4f/%.4f" % (acc_val, acc_test))
     plt.tight_layout()
     plt.savefig(dir + "result_%s.png" % (name))
 
@@ -812,7 +877,7 @@ def run_bars(params, name, dir):
 
     with open(dir + "results.txt", "a") as f:
         fcntl.flock(f, fcntl.LOCK_EX)
-        f.write("%s\t\t\t%f\t\t%f\t\t%f\n" % (name, val_res[-1, 1], acc_val, acc_test))
+        f.write("%s\t\t\t%f\t\t%f\t\t%f\n" % (name, val_res[-1, 1], acc_val, acc))
         fcntl.flock(f, fcntl.LOCK_UN)
 
 
@@ -848,7 +913,6 @@ def run_yinyang(params, name, dir):
         plt.clf()
 
     records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=params["N_epochs"], val_len=params["val_len"], vals_per_epoch=params["vals_per_epoch"],
-                                 n_features=4,
                                  n_out=3, classify=True, u_high=1.0, u_low=0.1, metric=accuracy, rec_pots=rec_pots, rec_dt=1000)
 
     if params["track_sps"]:
@@ -901,21 +965,29 @@ def run_yinyang(params, name, dir):
         fcntl.flock(f, fcntl.LOCK_UN)
 
 
-import argparse, json
+if __name__=="__main__":
+    sine_task(bias_pyr=False, bias_inter=False)
+    sine_task(bias_pyr=True, bias_inter=False)
+    sine_task(bias_pyr=True, bias_inter=True)
 
-parser = argparse.ArgumentParser()
-parser.add_argument('task', help='task')
-parser.add_argument('--config', help='config file')
-parser.add_argument('--dir', help='store results here')
+'''
 
-args = parser.parse_args()
+    import argparse, json
 
-with open(args.config) as json_file:
-    params = json.load(json_file)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('task', help='task')
+    parser.add_argument('--config', help='config file')
+    parser.add_argument('--dir', help='store results here')
 
-if args.task == "yinyang":
-    run_yinyang(params, params["name"], args.dir)
-elif args.task == "bars":
-    run_bars(params, params["name"], args.dir)
-else:
-    raise Exception("task not known!")
+    args = parser.parse_args()
+
+    with open(args.config) as json_file:
+        params = json.load(json_file)
+
+    if args.task == "yinyang":
+        run_yinyang(params, params["name"], args.dir)
+    elif args.task == "sine":
+        run_sine(params, params["name"], args.dir)
+    else:
+        raise Exception("task not known!")
+'''

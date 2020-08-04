@@ -83,6 +83,54 @@ class YinYangDataset(Dataset):
 
 
 
+class SineDataset(Dataset):
+    def __init__(self, wavelength=1.0, amplitude=0.2, bottom_left=0.0, top_right=1., size=1000, seed=42, flipped_coords=False):
+        if seed is not None:
+            np.random.seed(seed)
+        self.wavelen = wavelength
+        self.ampl = amplitude
+        self.__vals = []
+        self.__cs = []
+        self.class_names = ['top', 'bottom']
+        for i in range(size):
+            # keep num of class instances balanced
+            goal = np.random.randint(2)
+            x, y, c = self.get_sample(goal=goal)
+            # x, y in range 0 to 1 -> adjust
+            x = bottom_left + x * (top_right - bottom_left)
+            x_flipped = top_right - x + bottom_left
+            y = bottom_left + y * (top_right - bottom_left)
+            y_flipped = top_right - y + bottom_left
+            val = []
+            val.append(x)
+            val.append(y)
+            if flipped_coords:
+                val.append(x_flipped)
+                val.append(y_flipped)
+            self.__vals.append(np.array(val))
+            self.__cs.append(c)
+        self.__vals = np.array(self.__vals)
+        self.__cs = np.array(self.__cs)
+
+    def get_sample(self, goal=None):
+        x = np.random.rand()
+        y = np.random.rand()
+        c = y > np.sin(2*np.pi*x/self.wavelen)*self.ampl + 0.5
+        if goal is None:
+            return x, y, c
+        elif goal == c:
+            return x, y, c
+        else:
+            x, y, c = self.get_sample(goal)
+            return x, y, c
+
+    def __getitem__(self, index):
+        return self.__vals[index], self.__cs[index]
+
+    def __len__(self):
+        return len(self.__cs)
+
+
 class BarsDataset(Dataset):
     def __init__(self, square_size, bottom_left=0.0, top_right=1.0, noise_level=1e-2, samples_per_class=10, seed=42):
         if seed is not None:
@@ -165,7 +213,9 @@ class BarsDataset(Dataset):
 
 
 
-def plot_yy(x, label, ax=plt.gca()):
+def plot_yy(x, label, ax=None):
+    if ax is None:
+        ax = plt.gca()
     c1 = np.argwhere(label==0).flatten()
     c2 = np.argwhere(label==1).flatten()
     c3 = np.argwhere(label==2).flatten()
@@ -176,12 +226,23 @@ def plot_yy(x, label, ax=plt.gca()):
     ax.set_ylim([-0.05,1.05])
     ax.set_aspect(1)
 
+def plot_sine(x, label, ax=None):
+    if ax is None:
+        ax = plt.gca()
+    c1 = np.argwhere(label==0).flatten()
+    c2 = np.argwhere(label==1).flatten()
+    ax.scatter(x[c1, 0], x[c1, 1], c="red")
+    ax.scatter(x[c2, 0], x[c2, 1], c="blue")
+    ax.set_xlim([-0.05,1.05])
+    ax.set_ylim([-0.05,1.05])
+    ax.set_aspect(1)
+
 def plot_bars(x, size):
     plt.imshow(x.reshape(size, size))
 
 if __name__=="__main__":
     #test yin yang
-    X, Y = YinYangDataset(size=500)[:]
+    X, Y = YinYangDataset(size=1000)[:]
     plot_yy(X, Y)
     plt.title("Yin Yang Dataset")
     plt.show()
@@ -199,5 +260,11 @@ if __name__=="__main__":
     for i in range(4):
         plt.subplot(3,4,i + 9)
         plot_bars(X[np.argwhere(Y == 2).flatten()[i]], 3)
+    plt.show()
+
+    # test sine
+    X, Y = SineDataset(size=1000)[:]
+    plot_sine(X, Y)
+    plt.title("Sine Dataset")
     plt.show()
 
