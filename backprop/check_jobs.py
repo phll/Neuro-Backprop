@@ -3,14 +3,17 @@ import numpy as np
 import fcntl
 import os
 
-name = "yinyang_pyralnet_opt2"
+name = "bars_pyralnet_bias_off"
 tmp = "runs/"+name+"/tmp/"
 results = "runs/"+name+"/results/"
 user = "hd_fy440"
 
 #check which jobs are currently active, eligible or blocked
-res = subprocess.check_output('showq -u %s | grep -Po "^[0-9]+(?=\s+%s)"'%(user, user), shell=True).decode("utf-8")
-listed_jobs = [int(s) for s in res.split('\n')[:-1]]
+try:
+    res = subprocess.check_output('showq -u %s | grep -Po "^[0-9]+(?=\s+%s)"'%(user, user), shell=True).decode("utf-8")
+    listed_jobs = [int(s) for s in res.split('\n')[:-1]]
+except subprocess.CalledProcessError:
+    listed_jobs = []
 
 #load nemo-ids of all submitted jobs
 job_nemo_ids = np.loadtxt(tmp + "job_nemo_ids", skiprows=1, dtype=np.int)
@@ -51,6 +54,8 @@ with open(results + "results.txt", "r+") as f_results: #are processes found in r
     f_results.seek(0)
     f_results.truncate()
     for l in file_content.split("\n")[:-1]:
+        if l == '':
+            continue
         skip = False
         for dl in delete_lines:
             if dl in l:

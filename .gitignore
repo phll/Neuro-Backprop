@@ -1,4 +1,6 @@
 .ipynb*
+backprop/*.e*
+backprop/*.o*
 __pycache__
 .idea
 backprop/plots

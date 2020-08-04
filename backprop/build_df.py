@@ -3,7 +3,7 @@ import pandas as pd
 
 ### builds pandas dataframe from results.txt file
 
-name = "yinyang_pyralnet_opt2"
+name = "bars_pyralnet_bias_off"
 results = "runs/"+name+"/results/"
 configs = "runs/"+name+"/config/"
 

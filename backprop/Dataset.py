@@ -84,7 +84,9 @@ class YinYangDataset(Dataset):
 
 
 class BarsDataset(Dataset):
-    def __init__(self, square_size, bottom_left=0.0, top_right=1.0, noise_level=1e-2, samples_per_class=10):
+    def __init__(self, square_size, bottom_left=0.0, top_right=1.0, noise_level=1e-2, samples_per_class=10, seed=42):
+        if seed is not None:
+            np.random.seed(seed)
         debug = False
         self.__vals = []
         self.__cs = []
