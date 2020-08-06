@@ -235,7 +235,7 @@ class Net:
             l = self.layer[i]
             l_n = self.layer[i + 1]
             l.W_pi = - l.W_down.copy()
-            cols = min(l.W_pi.shape[1], l_n.W_up.shape[1]) # due to biases the column length of W_ip and W_up (next level) might differ
+            cols = min(l.W_ip.shape[1], l_n.W_up.shape[1]) # due to biases the column length of W_ip and W_up (next level) might differ
             l.W_ip[:, :cols] = l_n.W_up[:, :cols].copy() * l_n.gb / (l_n.gl + l_n.ga + l_n.gb) * (l.gl + l.gd) / l.gd
 
     def dump_weights(self, file):
