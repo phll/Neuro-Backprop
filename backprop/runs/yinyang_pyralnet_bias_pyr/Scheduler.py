@@ -13,7 +13,7 @@ name = "yinyang_pyralnet_bias_pyr"
 config = "runs/"+name+"/config/" # params for each execution
 results = "runs/"+name+"/results/" # results will go here
 tmp = "runs/"+name+"/tmp/" #job files (config files per job)
-N_runs = 700*20
+N_runs = 250*20
 
 # prepare file structure
 
@@ -30,17 +30,19 @@ f.write("id\t\t\tlast val\t\tval acc\t\ttest acc\n")
 f.close()
 
 os.system('cp %s %s'%(__file__, "runs/"+name+"/Scheduler.py")) #copy this script to run directory
-
+os.system('cp %s %s'%("PyraLNet.py", "runs/"+name+"/PyraLNet.py"))
 
 # build run configs and store them in 'config'
 runs = []
 hyper_ranges = { "ga": np.linspace(0.1, 0.9, 100), "gsom": np.linspace(0.1, 0.9, 100),
-          "l_1": np.logspace(np.log10(5), -3, 1000), "l_2_mul": np.logspace(-1, -5, 1000),
+          "l_1": np.logspace(np.log10(5), -2, 1000), "l_2_mul": np.logspace(-3, -5, 1000),
           "ip_mul": [2], "seed": [42] }
 
 hyper_vals = list(ParameterSampler(hyper_ranges, n_iter=N_runs, random_state=0))
 
 run_id = 0
+
+print("build config files")
 
 for hp in hyper_vals:
     ga = hp["ga"]
@@ -54,7 +56,7 @@ for hp in hyper_vals:
     run_id += 1
 
     params = {"name": run_name, "seed": seed, "init_sps": True, "track_sps": False, "N_train": 6000,
-              "N_test": 600, "N_val": 600, "N_epochs": 45, "val_len": 40, "vals_per_epoch": 3,
+              "N_test": 600, "N_val": 600, "N_epochs": 65, "val_len": 60, "vals_per_epoch": 3,
               "model": {"dims": [4, 120, 3], "act": "sigmoid", "dt": 0.1, "gl": 0.1, "gb": 1.0,
                         "ga": ga, "gd": 1.0,
                         "gsom": gsom,
@@ -89,7 +91,7 @@ for i in range(jobs):
     f.close()
 
     # submit job and save nemo-id
-    result = subprocess.check_output('msub -N %s_%d_%d -l nodes=1:ppn=20,walltime=28:00:00,pmem=6GB job.sh "%s"'%(name, i+1, jobs, os.getcwd() + "/" + tmp + "%d.job"%(i)), shell=True)
+    result = subprocess.check_output('msub -N %s_%d_%d -l nodes=1:ppn=20,walltime=34:00:00,pmem=6GB job.sh "%s"'%(name, i+1, jobs, os.getcwd() + "/" + tmp + "%d.job"%(i)), shell=True)
     n_id = result.decode('utf-8').replace('\n', '')
     print(n_id)
     f_ids.write("%d\t\t%s\n"%(i, n_id))

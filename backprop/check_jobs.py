@@ -3,7 +3,7 @@ import numpy as np
 import fcntl
 import os
 
-name = "bars_pyralnet_bias_off"
+name = "yinyang_pyralnet_bias_pyr"
 tmp = "runs/"+name+"/tmp/"
 results = "runs/"+name+"/results/"
 user = "hd_fy440"
