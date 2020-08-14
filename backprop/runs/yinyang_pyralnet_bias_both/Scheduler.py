@@ -16,7 +16,7 @@ tmp = "runs/"+name+"/tmp/" #job files (config files per job)
 N_runs = 250*20
 
 # prepare file structure
-print("Delete all existing files in %s. Continue?"%(name), end='')
+print("Delete all existing files in %s. Continue?"%(name))
 _ = input()
 
 Path(config).mkdir(parents=True, exist_ok=True)
