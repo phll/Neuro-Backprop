@@ -75,9 +75,9 @@ class Layer:
         u_i = self.u_inn["soma"]
 
         self.du_pyr = self.dt * (-self.gl * u_p + self.gb * (self.u_pyr["basal"] - u_p) + self.ga * (
-                self.u_pyr["apical"] - u_p) + noise_on * self.noise * np.random.normal(size=1))
+                self.u_pyr["apical"] - u_p) + noise_on * self.noise * np.random.normal(size=len(self.u_pyr["soma"])))
         self.du_inn = self.dt * (-self.gl * u_i + self.gd * (self.u_inn["dendrite"] - u_i) + self.gsom * (
-                u_next - u_i) + noise_on * self.noise * np.random.normal(size=1))
+                u_next - u_i) + noise_on * self.noise * np.random.normal(size=len(self.u_inn["soma"])))
 
         if not learning_on:
             return
@@ -169,7 +169,7 @@ class OutputLayer:
         #### compute changes
 
         self.du_pyr = self.dt * (-self.gl * self.u_pyr["soma"] + self.gb * (
-                self.u_pyr["basal"] - self.u_pyr["soma"]) + noise_on * self.noise * np.random.normal(size=1))
+                self.u_pyr["basal"] - self.u_pyr["soma"]) + noise_on * self.noise * np.random.normal(size=len(self.u_pyr["soma"])))
         if u_target is not None:
             self.du_pyr += self.dt * self.gsom * (u_target - self.u_pyr["soma"])
 

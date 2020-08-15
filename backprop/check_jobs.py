@@ -3,7 +3,7 @@ import numpy as np
 import fcntl
 import os
 
-name = "yinyang_pyralnet_bias_both"
+name = "yinyang_pyralnet_bias_pyr"
 tmp = "runs/"+name+"/tmp/"
 results = "runs/"+name+"/results/"
 config = "runs/"+name+"/config/"
@@ -33,7 +33,16 @@ n_success = 0
 n_part = 0
 n_failed = 0
 rebundle = []
-print("check for failed jobs... (do not interrupt)")
+do_rebundling = False
+print("checking for failed jobs... (do not interrupt)\nDo you want to rebundle partially failed jobs? (y/n) ", end='')
+while True:
+    x = input()
+    if x=="y":
+        do_rebundling = True
+        break
+    elif x=="n":
+        break
+
 with open(results + "results.txt", "r+") as f_results: #are processes found in results -> successfull
     fcntl.flock(f_results, fcntl.LOCK_EX)
     file_content = f_results.read()
@@ -67,7 +76,8 @@ with open(results + "results.txt", "r+") as f_results: #are processes found in r
             n_part += 1
             for fn in failed:
                 print("----run %s failed."%(fn))
-                os.system("sed -i '/%s/d' %s"%(fn, tmp + str(job)+".job"))
+                if do_rebundling:
+                    os.system("sed -i '/%s/d' %s"%(fn, tmp + str(job)+".job"))
             rebundle += failed
 
     fcntl.flock(f_results, fcntl.LOCK_UN)
@@ -79,23 +89,24 @@ print("%d (%d) of %d jobs (partially) failed"%(n_failed, n_part, len(job_nemo_id
 
 
 #rebundle partially failed jobs
-n_new_jobs = int(np.ceil(len(rebundle)/cores_per_job))
-id_off = np.max(job_nemo_ids[:,0]) + 1
-job_nemo_ids = np.resize(job_nemo_ids, (len(job_nemo_ids) + n_new_jobs, 2))
+if do_rebundling:
+    n_new_jobs = int(np.ceil(len(rebundle)/cores_per_job))
+    id_off = np.max(job_nemo_ids[:,0]) + 1
+    job_nemo_ids = np.resize(job_nemo_ids, (len(job_nemo_ids) + n_new_jobs, 2))
 
-print("rebundle %d failed runs (from partially failed jobs) into %d new jobs"%(len(rebundle), n_new_jobs))
+    print("rebundle %d failed runs (from partially failed jobs) into %d new jobs"%(len(rebundle), n_new_jobs))
 
-# bundle runs into jobs (each job has 'cores_per_job' runs/subprocesses)
-for i in range(n_new_jobs):
-    job_id = i + id_off
-    # create a job-file containing all the config-files for the subprocesses it hosts
-    f = open(tmp + "%d.job"%(job_id), "x")
-    f.write(os.getcwd() + "/" + results + "\n")
-    for k in range(i*cores_per_job, min((i+1)*cores_per_job, len(rebundle))):
-        f.write(os.getcwd() + "/" + config + rebundle[k] + ".conf\n")
-    f.close()
-    restart_jobs += [job_id]
-    job_nemo_ids[job_id, 0] = job_id
+    # bundle runs into jobs (each job has 'cores_per_job' runs/subprocesses)
+    for i in range(n_new_jobs):
+        job_id = i + id_off
+        # create a job-file containing all the config-files for the subprocesses it hosts
+        f = open(tmp + "%d.job"%(job_id), "x")
+        f.write(os.getcwd() + "/" + results + "\n")
+        for k in range(i*cores_per_job, min((i+1)*cores_per_job, len(rebundle))):
+            f.write(os.getcwd() + "/" + config + rebundle[k] + ".conf\n")
+        f.close()
+        restart_jobs += [job_id]
+        job_nemo_ids[job_id, 0] = job_id
 
 print("restarting jobs: ", restart_jobs, len(restart_jobs))
 
