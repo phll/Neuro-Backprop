@@ -3,7 +3,7 @@ import numpy as np
 import fcntl
 import os
 
-name = "yinyang_pyralnet_bias_pyr"
+name = "yinyang_pyralnet_80"
 tmp = "runs/"+name+"/tmp/"
 results = "runs/"+name+"/results/"
 config = "runs/"+name+"/config/"
@@ -85,7 +85,7 @@ with open(results + "results.txt", "r+") as f_results: #are processes found in r
 running_jobs = [ job[0] for job in job_nemo_ids if job[1] in listed_jobs]
 print("%d of %d jobs successfully completed"%(n_success, len(job_nemo_ids)))
 print("%d of %d jobs running or waiting"%(len(running_jobs), len(job_nemo_ids)))
-print("%d (%d) of %d jobs (partially) failed"%(n_failed, n_part, len(job_nemo_ids)))
+print("%d (%d -> %d runs) of %d jobs (partially) failed"%(n_failed, n_part, len(rebundle), len(job_nemo_ids)))
 
 
 #rebundle partially failed jobs
@@ -112,7 +112,7 @@ print("restarting jobs: ", restart_jobs, len(restart_jobs))
 
 #restart jobs
 for job in restart_jobs:
-    result = subprocess.check_output('msub -N %s_%d_%d -l nodes=1:ppn=20,walltime=45:00:00,pmem=6GB job.sh "%s"' % (
+    result = subprocess.check_output('msub -N %s_%d_%d -l nodes=1:ppn=20,walltime=29:00:00,pmem=6GB job.sh "%s"' % (
     name, job + 1, len(job_nemo_ids), os.getcwd() + "/" + tmp + "%d.job" % (job)), shell=True)
     n_id = result.decode('utf-8').replace('\n', '')
     print(n_id)

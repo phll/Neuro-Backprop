@@ -9,11 +9,11 @@ from sklearn.model_selection import ParameterSampler
 nodes_per_job = 1
 cores_per_job = 20
 
-name = "yinyang_pyralnet_llag"
+name = "yinyang_pyralnet_test2"
 config = "runs/"+name+"/config/" # params for each execution
 results = "runs/"+name+"/results/" # results will go here
 tmp = "runs/"+name+"/tmp/" #job files (config files per job)
-N_runs = 30*20
+N_runs = 150*20
 
 # prepare file structure
 print("Delete all existing files in %s. Continue?"%(name), end='')
@@ -36,8 +36,8 @@ os.system('cp %s %s'%("PyraLNet.py", "runs/"+name+"/PyraLNet.py"))
 
 # build run configs and store them in 'config'
 runs = []
-hyper_ranges = { "ga": np.linspace(0.05, 0.2, 100), "gsom": np.linspace(0.2, 0.4, 100),
-          "l_1": np.logspace(np.log10(5), -1, 1000), "l_2_mul": np.logspace(-3, -4.5, 1000),
+hyper_ranges = { "ga": np.linspace(0.6, 0.9, 100), "gsom": np.linspace(0.5, 0.9, 100),
+          "l_1": np.logspace(np.log10(5), -2, 1000), "l_2_mul": np.logspace(-3, -5, 1000),
           "ip_mul": [2], "seed": [42] }
 
 hyper_vals = list(ParameterSampler(hyper_ranges, n_iter=N_runs, random_state=1))
@@ -46,7 +46,7 @@ run_id = 0
 
 print("build config files")
 
-for hp in [{"ga": 0.1, "gsom": 0.3, "l_1": 1.0, "l_2_mul": 5.0*10**-4, "ip_mul": 2.0, "seed": 42}]+hyper_vals:
+for hp in hyper_vals:
     ga = hp["ga"]
     gsom = hp["gsom"]
     l_1 = hp["l_1"]
@@ -67,7 +67,7 @@ for hp in [{"ga": 0.1, "gsom": 0.3, "l_1": 1.0, "l_2_mul": 5.0*10**-4, "ip_mul":
                         "bias": {"pyr_on": True, "inter_on": True, "val": 0.5},
                         "init_weights": {"up": 0.1, "down": 1, "pi": 1, "ip": 0.1}, "tau_w": 30, "noise": 0,
                         "t_pattern": 100,
-                        "out_lag": 80, "tau_0": 3, "learning_lag": 20}}
+                        "out_lag": 80, "tau_0": 3, "learning_lag": 0}}
 
     with open('%s.conf'%(config+run_name), 'w') as file:
         file.write(json.dumps(params))

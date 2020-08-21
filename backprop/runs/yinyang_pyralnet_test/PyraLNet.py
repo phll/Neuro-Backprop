@@ -350,7 +350,7 @@ class Net:
                 r_in[:] += self.params["dt"] / self.params["tau_0"] * (in_seq[seq_idx] - r_in)
                 if rec_dt>0:
                     r_in_trc.record()
-                learning_on = i >= n_learning_wait and not learning_off
+                learning_on = i > n_learning_wait and not learning_off
 
                 # lowpass target potentials and update network
                 if trgt_seq is not None:
