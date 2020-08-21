@@ -91,7 +91,7 @@ for i in range(jobs):
     f.close()
 
     # submit job and save nemo-id
-    result = subprocess.check_output('msub -N %s_%d_%d -l nodes=1:ppn=20,walltime=34:00:00,pmem=6GB job.sh "%s"'%(name, i+1, jobs, os.getcwd() + "/" + tmp + "%d.job"%(i)), shell=True)
+    result = subprocess.check_output('msub -N %s_%d_%d -l nodes=1:ppn=20,walltime=34:00:00,pmem=6GB job_pyral.sh "%s"'%(name, i+1, jobs, os.getcwd() + "/" + tmp + "%d.job"%(i)), shell=True)
     n_id = result.decode('utf-8').replace('\n', '')
     print(n_id)
     f_ids.write("%d\t\t%s\n"%(i, n_id))

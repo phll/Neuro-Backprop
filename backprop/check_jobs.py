@@ -112,7 +112,7 @@ print("restarting jobs: ", restart_jobs, len(restart_jobs))
 
 #restart jobs
 for job in restart_jobs:
-    result = subprocess.check_output('msub -N %s_%d_%d -l nodes=1:ppn=20,walltime=29:00:00,pmem=6GB job.sh "%s"' % (
+    result = subprocess.check_output('msub -N %s_%d_%d -l nodes=1:ppn=20,walltime=29:00:00,pmem=6GB job_pyral.sh "%s"' % (
     name, job + 1, len(job_nemo_ids), os.getcwd() + "/" + tmp + "%d.job" % (job)), shell=True)
     n_id = result.decode('utf-8').replace('\n', '')
     print(n_id)
