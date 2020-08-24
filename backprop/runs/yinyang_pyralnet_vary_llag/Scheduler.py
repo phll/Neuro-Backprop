@@ -8,7 +8,7 @@ from sklearn.model_selection import ParameterSampler
 nodes_per_job = 1
 cores_per_job = 20
 
-name = "yinyang_pyralnet_vary_llag_200ms"
+name = "yinyang_pyralnet_vary_llag"
 config = "runs/"+name+"/config/" # params for each execution
 results = "runs/"+name+"/results/" # results will go here
 tmp = "runs/"+name+"/tmp/" #job files (config files per job)
@@ -62,7 +62,7 @@ for hp in [{"ga": 0.28, "gsom": 0.34, "l_1": 6.1, "l_2_mul": 0.00012, "ip_mul": 
                                         "ip": [ip_mul*l_1*l_2_mul, 0]},
                                 "bias": {"on": True, "val": 0.5},
                                 "init_weights": {"up": 0.1, "down": 1, "pi": 1, "ip": 0.1}, "tau_w": 30, "noise": 0,
-                                "t_pattern": 200,
+                                "t_pattern": 100,
                                 "out_lag": 80, "tau_0": 3, "learning_lag": llag}}
 
             with open('%s.conf'%(config+run_name), 'w') as file:
@@ -89,7 +89,7 @@ for i in range(jobs):
     f.close()
 
     # submit job and save nemo-id
-    result = subprocess.check_output('msub -N %s_%d_%d -l nodes=1:ppn=20,walltime=52:00:00,pmem=6GB job_pyral.sh "%s"'%(name, i+1, jobs, os.getcwd() + "/" + tmp + "%d.job"%(i)), shell=True)
+    result = subprocess.check_output('msub -N %s_%d_%d -l nodes=1:ppn=20,walltime=26:00:00,pmem=6GB job_pyral.sh "%s"'%(name, i+1, jobs, os.getcwd() + "/" + tmp + "%d.job"%(i)), shell=True)
     n_id = result.decode('utf-8').replace('\n', '')
     print(n_id)
     f_ids.write("%d\t\t%s\n"%(i, n_id))

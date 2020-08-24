@@ -3,9 +3,11 @@ import pandas as pd
 
 ### builds pandas dataframe from results.txt file
 
-name = "yinyang_pyralnet_80"
+name = "yinyang_pyralnet_vary_llag"
 results = "runs/"+name+"/results/"
 configs = "runs/"+name+"/config/"
+COLLAPSE_SEEDS = True
+n_seeds = 10
 
 rows = []
 with open(results + "results.txt", "r") as f_res:
@@ -18,7 +20,7 @@ with open(results + "results.txt", "r") as f_res:
 
         with open(configs + conf) as json_file:
             params = json.load(json_file)
-            
+
             l1 = params["model"]["eta"]["up"][0]
             l2 = params["model"]["eta"]["up"][1]
             l2_mul = l2 / l1
@@ -26,14 +28,25 @@ with open(results + "results.txt", "r") as f_res:
             gsom = params["model"]["gsom"]
             ip1 = params["model"]["eta"]["ip"][0]
             ip1_mul = ip1 / l2
+            l_pi = params["model"]["eta"]["pi"][0]
+            learning_lag = params["model"]["learning_lag"]
 
-            rows += [[run_id, ga, gsom, l1, l2, l2_mul, ip1, ip1_mul, test_acc]]
+            rows += [[run_id, ga, gsom, l1, l2, l2_mul, ip1, ip1_mul, l_pi, learning_lag,  test_acc]]
 
-df = pd.DataFrame(rows, columns = ["run_id", "ga", "gsom", "l1", "l2", "l2_mul", "ip1", "ip1_mul", "test accuracy"])
+df = pd.DataFrame(rows, columns = ["run_id", "ga", "gsom", "l1", "l2", "l2_mul", "ip1", "ip1_mul", "l_pi", "learning_lag", "test accuracy"])
 df = df.sort_values(by=["test accuracy"], ascending=False)
 
 df.to_csv (results + "results_df.csv", index = False, header=True)
 
 print(df[:50])
-
 print(df)
+
+if COLLAPSE_SEEDS:
+    df_stats = df.groupby(by=["ga", "gsom", "l1", "l2", "l2_mul", "ip1", "ip1_mul", "l_pi", "learning_lag"]).agg(["mean", "std", "sem", "size"])
+
+    print(df_stats[:50])
+    print(df_stats)
+    print(df_stats.sort_values(by=("test accuracy", "mean"), ascending=False))
+
+    #df_stats.columns = df_stats.columns.map('_'.join)
+    df_stats.reset_index().to_csv(results + "results_df_stats.csv", index=False, header=True)
