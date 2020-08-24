@@ -3,13 +3,14 @@ import pandas as pd
 
 ### builds pandas dataframe from results.txt file
 
-name = "yinyang_pyralnet_vary_llag"
+name = "yinyang_pyralnet_llag_perf"
 results = "runs/"+name+"/results/"
 configs = "runs/"+name+"/config/"
 COLLAPSE_SEEDS = True
 n_seeds = 10
 
 rows = []
+
 with open(results + "results.txt", "r") as f_res:
     f_res.readline() # skip header
     for l in f_res:
@@ -42,11 +43,10 @@ print(df[:50])
 print(df)
 
 if COLLAPSE_SEEDS:
-    df_stats = df.groupby(by=["ga", "gsom", "l1", "l2", "l2_mul", "ip1", "ip1_mul", "l_pi", "learning_lag"]).agg(["mean", "std", "sem", "size"])
+    df_stats = df.groupby(by=["ga", "gsom", "l1", "l2", "l2_mul", "ip1", "ip1_mul", "l_pi", "learning_lag"]).agg(["mean", "std", "sem", "min", "max", "size"])
 
     print(df_stats[:50])
     print(df_stats)
     print(df_stats.sort_values(by=("test accuracy", "mean"), ascending=False))
 
-    #df_stats.columns = df_stats.columns.map('_'.join)
     df_stats.reset_index().to_csv(results + "results_df_stats.csv", index=False, header=True)

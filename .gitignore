@@ -4,8 +4,9 @@ backprop/*.o*
 __pycache__
 .idea
 backprop/logs
-backprop/plots
 backprop/runs/**/tmp
 backprop/runs/test
 backprop/runs/**/config
 backprop/runs/**/results/*.png
+backprop/runs/**/results/*.npy
+backprop/runs/**/results/val_res*.txt
