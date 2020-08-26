@@ -4,6 +4,8 @@ import PyraLNet as pyral
 import matplotlib.pyplot as plt
 import Dataset
 import fcntl
+from pathlib import Path
+
 
 dtype = pyral.dtype
 
@@ -11,24 +13,24 @@ class Layer(pyral.Layer):
 
     def update(self, r_in, u_next, dir_up):
         #### input rates
-        r_pyr = np.zeros(self.u_pyr["soma"].shape[0] + self.bias)
-        r_in_buf = np.zeros(r_in + self.bias)
+        r_pyr = np.zeros(self.u_pyr["soma"].shape[0] + self.bias, dtype=dtype)
+        r_in_buf = np.zeros(len(r_in) + self.bias, dtype=dtype)
+        r_pyr[: len(self.u_pyr["soma"])] = self.act(self.u_pyr["soma"])
+        r_in_buf[: len(r_in)] = r_in
         if self.bias:
-            r_in_buf[:-1] = r_in
             r_in_buf[-1] = self.bias_val
-            r_pyr[:-1] = self.act(self.u_pyr["soma"])
             r_pyr[-1] = self.bias_val
-        else:
-            self.r_in_buf = r_in
-            r_pyr = self.act(self.u_pyr["soma"])
 
         #### compute potentials
         # if upwards pass compute pyramidials first, if downwards pass compute laterals first
         if dir_up:
             self.update_pyr(r_in_buf, u_next)
-            self.update_inn(self.act(self.u_pyr["soma"]), u_next)
+            r_pyr[: len(self.u_pyr["soma"])] = self.act(self.u_pyr["soma"])
+            if self.bias:
+                r_pyr[-1] = self.bias_val
+            self.update_inn(r_pyr, u_next)
         else:
-            self.update_inn(self.act(self.u_pyr["soma"]), u_next)
+            self.update_inn(r_pyr, u_next)
             self.update_pyr(r_in_buf, u_next)
 
     def apply(self):
@@ -36,19 +38,21 @@ class Layer(pyral.Layer):
 
     def update_weights(self, r_in, n_exposures):
         # input rates
+        r_pyr = np.zeros(self.u_pyr["soma"].shape[0] + self.bias, dtype=dtype)
+        r_in_buf = np.zeros(len(r_in) + self.bias, dtype=dtype)
+        r_pyr[: len(self.u_pyr["soma"])] = self.act(self.u_pyr["soma"])
+        r_in_buf[: len(r_in)] = r_in
         if self.bias:
-            self.r_in_buf[:-1] = r_in
-            self.r_in_buf[-1] = self.bias_val
-        else:
-            self.r_in_buf = r_in
+            r_in_buf[-1] = self.bias_val
+            r_pyr[-1] = self.bias_val
 
         #discretised lowpass
-        dT = self.params["t_pattern"]/n_exposures
+        dT = (self.params["t_pattern"] - self.params["learning_lag"])/n_exposures
         a = dT/(self.params["tau_w"]+dT)
         self.Delta_up = self.Delta_up * (1 - a) + a * np.outer(
-            self.act(self.u_pyr["soma"]) - self.act(self.gb / (self.gl + self.gb + self.ga) * self.u_pyr["basal"]), self.r_in_buf)
+            self.act(self.u_pyr["soma"]) - self.act(self.gb / (self.gl + self.gb + self.ga) * self.u_pyr["basal"]), r_in_buf)
         self.Delta_ip = self.Delta_ip * (1 - a) + a * np.outer(
-            self.act(self.u_inn["soma"]) - self.act(self.gd / (self.gl + self.gd) * self.u_inn["dendrite"]), self.act(self.u_pyr["soma"]))
+            self.act(self.u_inn["soma"]) - self.act(self.gd / (self.gl + self.gd) * self.u_inn["dendrite"]), r_pyr)
         self.Delta_pi = self.Delta_pi * (1 - a) + a * np.outer(-self.u_pyr["apical"], self.act(self.u_inn["soma"]))
 
         self.W_up += dT * self.eta["up"] * self.Delta_up
@@ -78,14 +82,15 @@ class OutputLayer(pyral.OutputLayer):
 
     def update(self, r_in, u_target):
         ### input rates
+        r_in_buf = np.zeros(len(r_in) + self.bias, dtype=dtype)
         if self.bias:
-            self.r_in_buf[:-1] = r_in
-            self.r_in_buf[-1] = self.bias_val
+            r_in_buf[:-1] = r_in
+            r_in_buf[-1] = self.bias_val
         else:
-            self.r_in_buf = r_in
+            r_in_buf = r_in
 
         ### compute potentials
-        self.u_pyr["basal"][:] = np.matmul(self.W_up, self.r_in_buf)  # [:] to enforce rhs to be copied to lhs
+        self.u_pyr["basal"][:] = np.matmul(self.W_up, r_in_buf)  # [:] to enforce rhs to be copied to lhs
         self.u_pyr["soma"] = self.gb / (self.gl + self.gb) * self.u_pyr["basal"]
         if u_target is not None:
             l = self.gsom / (self.gl + self.gb + self.gsom)
@@ -93,18 +98,19 @@ class OutputLayer(pyral.OutputLayer):
 
     def update_weights(self, r_in, n_exposures):
         # input rates
+        r_in_buf = np.zeros(len(r_in) + self.bias, dtype=dtype)
         if self.bias:
-            self.r_in_buf[:-1] = r_in
-            self.r_in_buf[-1] = self.bias_val
+            r_in_buf[:-1] = r_in
+            r_in_buf[-1] = self.bias_val
         else:
-            self.r_in_buf = r_in
+            r_in_buf = r_in
 
         # discretised lowpass
-        dT = self.params["t_pattern"] / n_exposures
+        dT = (self.params["t_pattern"] - self.params["learning_lag"]) / n_exposures
         a = dT / (self.params["tau_w"] + dT)
         self.Delta_up = self.Delta_up * (1 - a) + a * np.outer(
             self.act(self.u_pyr["soma"]) - self.act(self.gb / (self.gl + self.gb) * self.u_pyr["basal"]),
-            self.r_in_buf)
+            r_in_buf)
 
         self.W_up += dT * self.eta["up"] * self.Delta_up
 
@@ -124,6 +130,7 @@ class Net(pyral.Net):
         else:
             self.act = act
         dims = params["dims"]
+        self.dims = dims
         bias = params["bias"]["on"]
         bias_val = params["bias"]["val"]
         eta = {}
@@ -137,9 +144,9 @@ class Net(pyral.Net):
         eta["ip"] = params["eta"]["ip"][-1]
         self.layer += [OutputLayer(dims[-1], dims[-2], eta, params, self.act, bias, bias_val)]
         print("feedback-couplings: lambda_out = %f, lambda_inter = %f, lambda_hidden = %f"
-              %(params["gsom"]/(params["gl"] + params["gb"] + params["gsom"]),
-                params["gsom"]/(params["gl"] + params["gd"] + params["gsom"]),
-                params["ga"]/(params["gl"] + params["gb"] + params["ga"])))
+              % (params["gsom"] / (params["gl"] + params["gb"] + params["gsom"]),
+                 params["gsom"] / (params["gl"] + params["gd"] + params["gsom"]),
+                 params["ga"] / (params["gl"] + params["gb"] + params["ga"])))
 
 
     def update(self, r_in, u_target, n_passes=2, n_exposures=10, learning_on=True, records=None):
@@ -168,8 +175,8 @@ class Net(pyral.Net):
     def run(self, in_seq, trgt_seq=None, reset_weights=False, val_len=0, n_passes=2, n_exposures=10, metric=None,
             rec_pots=None, rec_dn=1, learning_off=False, info_update=100):
         #### prepare run
-        print("each input pattern is presented %d times -> dT/tau_w: %.3f"%(n_exposures, self.params["t_pattern"]/(self.params["tau_w"] * n_exposures)))
-        print("effective learning rate multiplier: %f"%(self.params["t_pattern"] / n_exposures))
+        print("each input pattern is presented %d times -> dT/tau_w: %.3f"%(n_exposures, (self.params["t_pattern"] - self.params["learning_lag"]) /(self.params["tau_w"] * n_exposures)))
+        print("effective learning rate multiplier: %f"%((self.params["t_pattern"] - self.params["learning_lag"]) / n_exposures))
         assert isinstance(rec_dn, int)
         rec_len = int(np.ceil(len(in_seq)/ rec_dn))
         records = []
@@ -263,11 +270,27 @@ class Net(pyral.Net):
         return tuple(ret) if len(ret) > 1 else ret[0]
 
 
-    def train(self, X_train, Y_train, X_val, Y_val, n_epochs, val_len, n_features, n_out, classify, u_high=1.0,
+    def train(self, X_train, Y_train, X_val, Y_val, n_epochs, val_len, n_out, classify, u_high=1.0,
               u_low=0.1, n_passes=2, n_exposures=10, rec_pots=None, rec_dn=1, vals_per_epoch=1, reset_weights=False,
               info_update=1000, metric=None):
 
         assert len(X_train) > vals_per_epoch
+        assert len(X_train) == len(Y_train)
+        assert len(X_val) == len(Y_val)
+
+        n_features = X_train.shape[1]
+
+        assert n_features == X_val.shape[1]
+        assert n_features == self.dims[0]
+        assert n_out == self.dims[-1]
+
+        if classify:
+            assert len(Y_train.shape) == 1
+            assert len(Y_val.shape) == 1
+        else:
+            assert (len(Y_train.shape) == 1 and n_out == 1) or Y_train.shape[1] == n_out
+            assert (len(Y_val.shape) == 1 and n_out == 1) or Y_val.shape[1] == n_out
+
         len_split_train = round(len(X_train) / vals_per_epoch)  # validation after each split
         vals_per_epoch = len(X_train) // len_split_train
         print("%d validations per epoch" % (vals_per_epoch))
@@ -275,9 +298,10 @@ class Net(pyral.Net):
         len_per_ep = vals_per_epoch * val_len + len(X_train)
         length = len_per_ep * n_epochs
 
-        r_in_seq = np.zeros((length, n_features), dtype=dtype)
+        r_in_seq = np.zeros((length, n_features))
         val_res = np.zeros((vals_per_epoch * n_epochs,
-                            3), dtype=dtype)  # [number of training patterns seen, mse of val result, metric of val result]
+                            3),
+                           dtype=dtype)  # [number of training patterns seen, mse of val result, metric of val result]
 
         if classify:
             target_seq = np.ones((length, n_out), dtype=dtype) * u_low
@@ -299,7 +323,8 @@ class Net(pyral.Net):
                 right = left + right_tr - left_tr
                 r_in_seq[left: right] = X_train[perm_train[left_tr:right_tr]]
                 if classify:
-                    target_seq[np.arange(left,right), Y_train[perm_train[left_tr:right_tr]]] = u_high
+                    target_seq[np.arange(left, right), 1 * Y_train[
+                        perm_train[left_tr:right_tr]]] = u_high  # enforce Y_train is an integer array!
                 else:
                     target_seq[left:right] = Y_train[perm_train[left_tr:right_tr]]
                 perm_val = np.random.permutation(len(X_val))[:val_len]
@@ -307,7 +332,8 @@ class Net(pyral.Net):
                 right = left + val_len
                 r_in_seq[left: right] = X_val[perm_val]
                 if classify:
-                    target_seq[np.arange(left,right), Y_val[perm_val]] = u_high
+                    target_seq[
+                        np.arange(left, right), 1 * Y_val[perm_val]] = u_high  # enforce Y_val is an integer array!
                 else:
                     target_seq[left:right] = Y_val[perm_val]
                 nudging_on[left: right, 0] = False
@@ -526,41 +552,43 @@ def bars_task(square_size=3, N_train=3000, N_test=300, n_epochs=2, N_hidden=30):
     print("test set accuracy: %f"%(acc))
 '''
 
-def yinyang_task(N_train=6000, N_test=600, n_epochs=2000, N_hidden=120, mul=1.0):
-    X_train, Y_train = Dataset.YinYangDataset(bottom_left=0, top_right=1, size=N_train, flipped_coords=True)[:]
-    X_val, Y_val = Dataset.YinYangDataset(bottom_left=0, top_right=1, size=N_test, flipped_coords=True)[:]
-    X_test, Y_test = Dataset.YinYangDataset(bottom_left=0, top_right=1, size=N_test, flipped_coords=True)[:]
-    params = {"dims": [4, N_hidden, 3], "dt": 0.1, "gl": 0.1, "gb": 1.0, "ga": 0.8, "gd": 1.0,
-              "gsom": 0.1,###################changed!
-              "eta": {"up": [mul*0.03, mul*0.01], "pi": [0, 0], "ip": [mul*0.02, 0]},
+def yinyang_task(N_train=6000, N_test=600, n_epochs=45, N_hidden=120):
+    Path("plots/SteadNet/yinyang_task").mkdir(parents=True, exist_ok=True)
+
+    X_train, Y_train = Dataset.YinYangDataset(size=N_train, flipped_coords=True, seed=None)[:]
+    X_val, Y_val = Dataset.YinYangDataset(size=N_test, flipped_coords=True, seed=None)[:]
+    X_test, Y_test = Dataset.YinYangDataset(size=N_test, flipped_coords=True, seed=None)[:]
+    params = {"dims": [4, N_hidden, 3], "dt": 0.1, "gl": 0.1, "gb": 1.0, "ga": 0.28, "gd": 1.0,
+              "gsom": 0.34,
+              "eta": {"up": [6.1, 0.00012], "pi": [0, 0], "ip": [0.00024, 0]},
               "bias": {"on": True, "val": 0.5},
               "init_weights": {"up": 0.1, "down": 1, "pi": 1, "ip": 1}, "tau_w": 30, "noise": 0, "t_pattern": 100,
-              "out_lag": 80, "tau_0": 3, "learning_lag": 0}
+              "out_lag": 80, "tau_0": 3, "learning_lag": 20}
     net = Net(params, act=pyral.sigmoid)
     net.reflect()
 
-    out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=n_epochs, val_len=40, vals_per_epoch=15, n_features=4,
+    out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=n_epochs, val_len=40, vals_per_epoch=15,
                                                       n_out=3, classify=True, u_high=1.0, u_low=0.1, metric=pyral.accuracy, n_exposures=1)
 
     # plot exponential moving average of validation error
-    plt.title("Validation error during training mul = %f w bias less"%(mul))
+    plt.title("Validation error during training")
     plt.semilogy(val_res[:, 0], pyral.ewma(val_res[:, 1], round(len(val_res) / 10)), label="mse")
     plt.xlabel("trial")
     plt.ylabel("mean squared error")
     ax2 = plt.gca().twinx()
     ax2.plot(val_res[:, 0], pyral.ewma(val_res[:, 2], round(len(val_res) / 10)), c="g", label="accuracy")
     ax2.set_ylabel("accuracy")
-    plt.savefig("plots/PyraLAN/yinyang_task/validation and accuracy during training mul %f bias less.png" % (mul))
+    plt.savefig("plots/SteadNet/yinyang_task/validation and accuracy during training.png")
     plt.show()
 
     # test run
     out_seq_test = net.run(X_test)
     y_pred = np.argmax(out_seq_test, axis=1)
     acc = np.sum(y_pred == Y_test) / len(Y_test)
-    print("test set accuracy (mul=%f): %f w bias" % (mul, acc))
+    print("test set accuracy: %f"%(acc))
     Dataset.plot_yy(X_test, y_pred)
-    plt.title("test mul = %f, acc = %f"%(mul, acc))
-    plt.savefig("plots/PyraLAN/yinyang_task/test result mul %f bias less.png" % (mul))
+    plt.title("test acc = %f"%(acc))
+    plt.savefig("plots/SteadNet/yinyang_task/test result.png")
     plt.show()
 
 
@@ -576,7 +604,6 @@ def run_yinyang(params, name, dir):
     net.reflect()
 
     out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=params["N_epochs"], val_len=params["val_len"], vals_per_epoch=params["vals_per_epoch"],
-                                 n_features=4,
                                  n_out=3, classify=True, u_high=1.0, u_low=0.1, metric=pyral.accuracy, n_exposures=params["N_exposures"])
 
     f, (a0, a1) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [3, 2]}, figsize=(11,5))
@@ -607,6 +634,9 @@ def run_yinyang(params, name, dir):
         fcntl.flock(f, fcntl.LOCK_UN)
 
 
+yinyang_task()
+exit(0)
+
 import argparse, json
 
 parser = argparse.ArgumentParser()
@@ -623,5 +653,3 @@ if args.task == "yinyang":
     run_yinyang(params, params["name"], args.dir)
 else:
     raise Exception("task not known!")
-
-

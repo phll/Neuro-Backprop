@@ -270,8 +270,7 @@ class Net:
                     r.record()
 
     def run(self, in_seq, trgt_seq=None, reset_weights=False, val_len=0, metric=None, rec_pots=None, rec_dt=0.0,
-            learning_off=False,
-            info_update=100):
+            learning_off=False, info_update=100):
         #### prepare run
         # record signals with time resolution rec_dt -> compress actual data
         n_pattern = int(self.params["t_pattern"] / self.params["dt"])  # length of one input pattern
@@ -580,36 +579,54 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
 
     params = {"dims": [N_in, N_hidden, N_out], "dt": 0.1, "gl": gl, "gb": gb, "ga": ga, "gd": gd, "gsom": gsom,
               "eta": {"up": [0.01, 0.005], "pi": [0.01, 0], "ip": [0.01, 0]},
-              "bias": {"pyr_on": False, "inter_on": False, "val": 0.0},
+              "bias": {"on": False, "val": 0.0},
               "init_weights": {"up": 1, "down": 1, "pi": 1, "ip": 1}, "tau_w": 30, "noise": 0, "t_pattern": 100,
               "out_lag": 3 * 10, "tau_0": 3, "learning_lag": 0}
     net = Net(params, act)
 
+    # does self-predicting state emerge?
     rec_pots = [["pyr_soma", "pyr_apical", "inn_soma", "W_up", "W_ip", "W_pi"],
                 ["pyr_soma", "W_up"]]
-    records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=n_epochs,
-                                                           val_len=8,
-                                                           n_out=N_out, classify=False, vals_per_epoch=10,
-                                                           rec_pots=rec_pots, rec_dt=0.5 * N * n_epochs)
 
-    # plot exponential moving average of validation error
-    plt.title("Validation error during training")
-    plt.semilogy(val_res[:, 0], ewma(val_res[:, 1], round(len(val_res) / 10)))
-    plt.xlabel("trial")
-    plt.ylabel("mean squared error")
-    plt.savefig("plots/PyraLNet/mimic_task/validation error during training.png")
-    plt.show()
+    '''print("-----Pre-training-----")
+    records, T, r_in, out_seq = net.run(np.random.sample((10*N, N_in)), rec_pots=rec_pots, rec_dt=1000)
 
-    # does self-predicting state emerge
-    plt.title("Lateral Weights Convergence")
+    plt.title("Lateral Weights pre-training")
     plt.semilogy(T / 100, np.sum((records[0]["W_ip"].data - records[1]["W_up"].data) ** 2, axis=(1, 2)),
                  label="$||W^{(0)}_{ip}-W^{(1)}_{up}||^2$")
     plt.semilogy(T / 100, np.sum((records[0]["W_pi"].data + net.layer[0].W_down) ** 2, axis=(1, 2)),
                  label="$||W^{(0)}_{pi}+W^{(0)}_{down}||^2$")
-    plt.xlabel("trial")
+    plt.xlabel("pattern")
     plt.ylabel("squared error")
     plt.legend()
-    plt.savefig("plots/PyraLNet/mimic_task/lateral weights convergence.png")
+    plt.savefig("plots/PyraLNet/mimic_task/lateral weights pre-training.png")
+    plt.show()'''
+
+    # training
+    print("-----Training-----")
+    records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=n_epochs,
+                                                           val_len=8,
+                                                           n_out=N_out, classify=False, vals_per_epoch=10,
+                                                           rec_pots=rec_pots, rec_dt=1000)
+
+    # plot exponential moving average of validation error
+    plt.title("Validation error during training")
+    plt.semilogy(val_res[:, 0], ewma(val_res[:, 1], round(len(val_res) / 10)))
+    plt.xlabel("pattern")
+    plt.ylabel("mean squared error")
+    plt.savefig("plots/PyraLNet/mimic_task/validation error during training.png")
+    plt.show()
+
+    # how does sps evolve?
+    plt.title("Lateral Weights Evolution")
+    plt.semilogy(T / 100, np.sum((records[0]["W_ip"].data - records[1]["W_up"].data) ** 2, axis=(1, 2)),
+                 label="$||W^{(0)}_{ip}-W^{(1)}_{up}||^2$")
+    plt.semilogy(T / 100, np.sum((records[0]["W_pi"].data + net.layer[0].W_down) ** 2, axis=(1, 2)),
+                 label="$||W^{(0)}_{pi}+W^{(0)}_{down}||^2$")
+    plt.xlabel("pattern")
+    plt.ylabel("squared error")
+    plt.legend()
+    plt.savefig("plots/PyraLNet/mimic_task/lateral weights during.png")
     plt.show()
 
     plt.figure(figsize=(12, 8))
@@ -618,12 +635,12 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
     for i in range(N_in):
         for j in range(N_hidden):
             plt.plot(T / 100, records[0]["W_up"].data[:, j, i], label="$W^{(0)}_{up; %d->%d}$" % (i, j), lw=1)
-            plt.plot([T_max * 0.98, T_max], [W_10[j, i], W_10[j, i]], c="r", lw=1.2)
+            plt.plot([T_max * 0.98, T_max], [W_10[j, i], W_10[j, i]], c="black", lw=1.2)
     for i in range(N_hidden):
         for j in range(N_out):
             plt.plot(T / 100, records[1]["W_up"].data[:, j, i], label="$W^{(1)}_{up; %d->%d}$" % (i, j), ls="--", lw=1)
-            plt.plot([T_max * 0.98, T_max], [W_21[j, i], W_21[j, i]], c="r", lw=1.2, ls=":")
-    plt.xlabel("trial")
+            plt.plot([T_max * 0.98, T_max], [W_21[j, i], W_21[j, i]], c="black", lw=1.2, ls=":")
+    plt.xlabel("pattern")
     plt.ylabel("weight")
     plt.xlim([-1, T_max * 1.05])
     ax = plt.gca()
@@ -635,7 +652,7 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
 
     # test
     print("-----Test run-----")
-    r_in_seq = np.random.sample((10, N_in))
+    r_in_seq = np.random.sample((20, N_in))
     target_seq = np.hstack((teacher(r_in_seq), np.zeros((len(r_in_seq), 1))))
     rec_test, T, r_in_test, u_target_test, out_seq_test, val_res_test = net.run(r_in_seq, trgt_seq=target_seq,
                                                                                 val_len=1, rec_pots=rec_pots, rec_dt=1)
@@ -778,11 +795,12 @@ def run_yinyang(params, name, dir):
 
     if params["track_sps"]:
         rec_pots = [["W_ip", "W_pi"], ["W_up"]]
-        records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=params["N_epochs"],
-                                                           val_len=params["val_len"],
-                                                           vals_per_epoch=params["vals_per_epoch"],
-                                                           n_out=3, classify=True, u_high=1.0, u_low=0.1,
-                                                           metric=accuracy, rec_pots=rec_pots, rec_dt=1000)
+        records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val,
+                                                               n_epochs=params["N_epochs"],
+                                                               val_len=params["val_len"],
+                                                               vals_per_epoch=params["vals_per_epoch"],
+                                                               n_out=3, classify=True, u_high=1.0, u_low=0.1,
+                                                               metric=accuracy, rec_pots=rec_pots, rec_dt=1000)
     else:
         out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=params["N_epochs"],
                                      val_len=params["val_len"],
@@ -817,7 +835,7 @@ def run_yinyang(params, name, dir):
     ax2.plot(val_res[:, 0], ewma(val_res[:, 2], round(len(val_res) / 10)), c="g", label="accuracy")
     ax2.set_ylabel("accuracy")
 
-    #save validation during training results
+    # save validation during training results
     np.savetxt(dir + "val_res_%s.txt" % (name), val_res)
 
     # validate on full validation set
