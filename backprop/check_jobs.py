@@ -3,7 +3,7 @@ import numpy as np
 import fcntl
 import os
 
-name = "yinyang_pyralnet_llag_sps"
+name = "yinyang_pyralnet_vary_llag_200ms"
 tmp = "runs/"+name+"/tmp/"
 results = "runs/"+name+"/results/"
 config = "runs/"+name+"/config/"
