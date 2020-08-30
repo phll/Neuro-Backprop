@@ -79,22 +79,22 @@ class Layer:
                 u_next - u_i) + noise_on * self.noise * np.random.normal(size=len(self.u_inn["soma"])))
 
         # weight updates (lowpass weight changes)
-        if not learning_on:
-            gtot = self.gl + self.gb + self.ga
-            dDelta_up = self.dt / self.tau_w * (- self.Delta_up + np.outer(
-                self.act(self.u_pyr["soma"]) - self.act(self.gb / gtot * self.u_pyr["basal"]), r_in_buf))
-            dDelta_ip = self.dt / self.tau_w * (- self.Delta_ip + np.outer(
-                self.act(self.u_inn["soma"]) - self.act(self.gd / (self.gl + self.gd) * self.u_inn["dendrite"]), r_pyr))
-            dDelta_pi = self.dt / self.tau_w * (- self.Delta_pi + np.outer(-self.u_pyr["apical"], r_inn))
+        gtot = self.gl + self.gb + self.ga
+        dDelta_up = self.dt / self.tau_w * (- self.Delta_up + np.outer(
+            self.act(self.u_pyr["soma"]) - self.act(self.gb / gtot * self.u_pyr["basal"]), r_in_buf))
+        dDelta_ip = self.dt / self.tau_w * (- self.Delta_ip + np.outer(
+            self.act(self.u_inn["soma"]) - self.act(self.gd / (self.gl + self.gd) * self.u_inn["dendrite"]), r_pyr))
+        dDelta_pi = self.dt / self.tau_w * (- self.Delta_pi + np.outer(-self.u_pyr["apical"], r_inn))
 
+        if learning_on:
             self.W_up += self.dt * self.eta["up"] * self.Delta_up
             self.W_ip += self.dt * self.eta["ip"] * self.Delta_ip
             self.W_pi += self.dt * self.eta["pi"] * self.Delta_pi
 
-            # apply Deltas
-            self.Delta_up += dDelta_up
-            self.Delta_ip += dDelta_ip
-            self.Delta_pi += dDelta_pi
+        # apply Deltas
+        self.Delta_up += dDelta_up
+        self.Delta_ip += dDelta_ip
+        self.Delta_pi += dDelta_pi
 
     def apply(self):
         # apply changes to soma potential
@@ -173,15 +173,15 @@ class OutputLayer:
             self.du_pyr += self.dt * self.gsom * (u_target - self.u_pyr["soma"])
 
         # weight updates (lowpass weight changes)
-        if not learning_on:
-            gtot = self.gl + self.gb
-            dDelta_up = self.dt / self.tau_w * (- self.Delta_up + np.outer(
-                self.act(self.u_pyr["soma"]) - self.act(self.gb / gtot * self.u_pyr["basal"]), r_in_buf))
+        gtot = self.gl + self.gb
+        dDelta_up = self.dt / self.tau_w * (- self.Delta_up + np.outer(
+            self.act(self.u_pyr["soma"]) - self.act(self.gb / gtot * self.u_pyr["basal"]), r_in_buf))
 
+        if learning_on:
             self.W_up += self.dt * self.eta["up"] * self.Delta_up
 
-            # apply Delta
-            self.Delta_up += dDelta_up
+        # apply Delta
+        self.Delta_up += dDelta_up
 
     def apply(self):
         # apply changes to soma potential
@@ -234,16 +234,13 @@ class Net:
             l.W_pi = - l.W_down.copy()
             l.W_ip = l_n.W_up.copy() * l_n.gb / (l_n.gl + l_n.ga + l_n.gb) * (l.gl + l.gd) / l.gd
 
-    def copy_weights(self):
+    def dump_weights(self, file):
         weights = []
         for n in range(1, len(self.layer) - 1):
             l = self.layer[n]
-            weights += [[l.W_up.copy(), l.W_pi.copy(), l.W_ip.copy(), l.W_down.copy()]]
-        weights += [[self.layer[-1].W_up.copy()]]
-        return weights
-
-    def dump_weights(self, file):
-        np.save(file, self.copy_weights())
+            weights += [[l.W_up, l.W_pi, l.W_ip, l.W_down]]
+        weights += [[self.layer[-1].W_up]]
+        np.save(file, weights)
 
     def update_params(self, params):
         for key, item in params.items():
@@ -271,7 +268,7 @@ class Net:
                     r.record()
 
     def run(self, in_seq, trgt_seq=None, reset_weights=False, val_len=0, metric=None, rec_pots=None, rec_dt=0.0,
-            learning_off=False, info_update=100, breadcrumbs=None):
+            learning_off=False, info_update=100):
         #### prepare run
         # record signals with time resolution rec_dt -> compress actual data
         n_pattern = int(self.params["t_pattern"] / self.params["dt"])  # length of one input pattern
@@ -302,10 +299,6 @@ class Net:
         # store validation results
         if val_len > 0:
             val_res = []  # [mse of val result, metric of val result]
-
-        #leave breadcrumbs (weights)
-        if breadcrumbs is not None:
-            weights = []
 
         # reset/initialize and add trackers for potentials that should be recorded
         for i in range(len(self.layer)):
@@ -393,11 +386,6 @@ class Net:
                     seq_idx, len(in_seq), time_str((len(in_seq) - seq_idx - 1) * (time.time() - start) / info_update)))
                 start = time.time()
 
-            # leave breadcrumbs
-            if breadcrumbs is not None and seq_idx in breadcrumbs:
-                print("leave a breadcrumb at pattern (index): %d"%(seq_idx))
-                weights += [self.copy_weights()]
-
         # finalize recordings
         for rcs in records:
             for _, r in rcs.items(): r.finalize()
@@ -414,17 +402,14 @@ class Net:
             ret += [np.linspace(0, rec_len * rec_dt, rec_len), r_in_trc.data]
             if trgt_seq is not None:
                 ret += [u_trgt_trc.data]
-        if breadcrumbs is not None:
-            ret += [weights]
         ret += [out_seq]
         if val_len > 0:
             ret += [np.array(val_res, dtype=dtype)]
         return tuple(ret) if len(ret) > 1 else ret[0]
 
-
     def train(self, X_train, Y_train, X_val, Y_val, n_epochs, val_len, n_out, classify, u_high=1.0,
               u_low=0.1, rec_pots=None, rec_dt=0.0,
-              vals_per_epoch=1, reset_weights=False, info_update=100, metric=None, breadcrumbs=None):
+              vals_per_epoch=1, reset_weights=False, info_update=100, metric=None):
 
         assert len(X_train) > vals_per_epoch
         assert len(X_train) == len(Y_train)
@@ -450,13 +435,10 @@ class Net:
         len_per_ep = vals_per_epoch * val_len + len(X_train)
         length = len_per_ep * n_epochs
 
-        breadcrumbs_ind = None
-        if breadcrumbs is not None:
-            breadcrumbs_ind = np.clip(len_per_ep*np.array(breadcrumbs)-1, a_min=0, a_max=None)
-            print(breadcrumbs_ind)
-
         r_in_seq = np.zeros((length, n_features))
-        val_res = np.zeros((vals_per_epoch * n_epochs, 3), dtype=dtype)  # [number of training patterns seen, mse of val result, metric of val result]
+        val_res = np.zeros((vals_per_epoch * n_epochs,
+                            3),
+                           dtype=dtype)  # [number of training patterns seen, mse of val result, metric of val result]
 
         if classify:
             target_seq = np.ones((length, n_out), dtype=dtype) * u_low
@@ -500,7 +482,7 @@ class Net:
         target_seq = np.hstack((target_seq, nudging_on))
 
         ret = self.run(r_in_seq, trgt_seq=target_seq, reset_weights=reset_weights, val_len=val_len, metric=metric,
-                       rec_pots=rec_pots, rec_dt=rec_dt, info_update=info_update, breadcrumbs=breadcrumbs_ind)
+                       rec_pots=rec_pots, rec_dt=rec_dt, info_update=info_update)
         val_res[:, 1:] = ret[-1]  # valres
 
         return ret[:-1] + tuple([val_res])
@@ -809,25 +791,20 @@ def run_yinyang(params, name, dir):
     if params["init_sps"]:
         net.reflect()
 
-    breadcrumbs = params["breadcrumbs"] if "breadcrumbs" in params else None
-    rec_pots = [["W_ip", "W_pi"], ["W_up"]] if params["track_sps"] else None
-
-    ret = net.train(X_train, Y_train, X_val, Y_val,n_epochs=params["N_epochs"],
-                        val_len=params["val_len"], vals_per_epoch=params["vals_per_epoch"],
-                        n_out=3, classify=True, u_high=1.0, u_low=0.1, metric=accuracy,
-                        rec_pots=rec_pots, rec_dt=1000 if rec_pots is not None else 0,
-                        breadcrumbs=breadcrumbs)
-    print(ret)
-
-    if rec_pots is not None:
-        records, T, r_in, u_trgt = ret[0], ret[1], ret[2], ret[3]
-    if breadcrumbs is not None:
-        weights = ret[-3]
-        breadcrumbs = np.sort(breadcrumbs) #ensure ascending order so that order matches with weigths
-        for i in range(len(breadcrumbs)):
-            np.save(dir + "weights_epoch_%d_%s.npy"%(breadcrumbs[i], name), weights[i])
-    out_seq = ret[-2]
-    val_res = ret[-1]
+    if params["track_sps"]:
+        rec_pots = [["W_ip", "W_pi"], ["W_up"]]
+        records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val,
+                                                               n_epochs=params["N_epochs"],
+                                                               val_len=params["val_len"],
+                                                               vals_per_epoch=params["vals_per_epoch"],
+                                                               n_out=3, classify=True, u_high=1.0, u_low=0.1,
+                                                               metric=accuracy, rec_pots=rec_pots, rec_dt=1000)
+    else:
+        out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=params["N_epochs"],
+                                     val_len=params["val_len"],
+                                     vals_per_epoch=params["vals_per_epoch"],
+                                     n_out=3, classify=True, u_high=1.0, u_low=0.1,
+                                     metric=accuracy)
 
     if params["track_sps"]:
         plt.title("Lateral Weights Convergence during training")
@@ -877,7 +854,7 @@ def run_yinyang(params, name, dir):
     plt.savefig(dir + "result_%s.png" % (name))
 
     # save network state
-    net.dump_weights(dir + "weights_final_%s.npy" % (name))
+    net.dump_weights(dir + "weights_%s.npy" % (name))
 
     with open(dir + "results.txt", "a") as f:
         fcntl.flock(f, fcntl.LOCK_EX)

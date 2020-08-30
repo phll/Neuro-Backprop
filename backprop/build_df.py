@@ -3,7 +3,7 @@ import pandas as pd
 
 ### builds pandas dataframe from results.txt file
 
-name = "yinyang_pyralnet_vary_llag_200ms"
+name = "yinyang_pyralnet_vary_llag_50ms_3"
 results = "runs/"+name+"/results/"
 configs = "runs/"+name+"/config/"
 COLLAPSE_SEEDS = True

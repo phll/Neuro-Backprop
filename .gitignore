@@ -3,6 +3,7 @@ backprop/*.e*
 backprop/*.o*
 __pycache__
 .idea
+backprop/test
 backprop/logs
 backprop/runs/**/tmp
 backprop/runs/test

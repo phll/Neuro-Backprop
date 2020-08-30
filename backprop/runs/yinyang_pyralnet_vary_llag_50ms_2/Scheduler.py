@@ -8,7 +8,7 @@ from sklearn.model_selection import ParameterSampler
 nodes_per_job = 1
 cores_per_job = 20
 
-name = "yinyang_pyralnet_vary_llag_50ms_4"
+name = "yinyang_pyralnet_vary_llag_50ms_2"
 config = "runs/"+name+"/config/" # params for each execution
 results = "runs/"+name+"/results/" # results will go here
 tmp = "runs/"+name+"/tmp/" #job files (config files per job)
@@ -48,7 +48,7 @@ for hp in [{"ga": 0.28, "gsom": 0.34, "l_1": 6.1, "l_2_mul": 0.00012, "ip_mul": 
     l_2_mul = hp["l_2_mul"]
     ip_mul = hp["ip_mul"]
 
-    for llag in np.linspace(0, 30, 30*2):
+    for llag in np.linspace(30, 48, 18*2):
         for seed in seeds:
             run_name = "%.2f_%.2f_%.2e_%.2e_%.1f__%d"%(ga, gsom, l_1, l_2_mul*l_1, llag, run_id)
             run_id += 1

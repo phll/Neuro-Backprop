@@ -8,7 +8,7 @@ from sklearn.model_selection import ParameterSampler
 nodes_per_job = 1
 cores_per_job = 20
 
-name = "yinyang_pyralnet_vary_llag_50ms_4"
+name = "yinyang_pyralnet_llag_weight_breadcrumbs"
 config = "runs/"+name+"/config/" # params for each execution
 results = "runs/"+name+"/results/" # results will go here
 tmp = "runs/"+name+"/tmp/" #job files (config files per job)
@@ -36,7 +36,7 @@ os.system('cp %s %s'%("job_pyral.sh", "runs/"+name+"/job_pyral.sh"))
 
 # build run configs and store them in 'config'
 runs = []
-seeds = [2304, 3446, 123, 4354, 8956, 283, 384, 78, 2, 6566]
+seeds = [2304, 3446, 123, 4354, 8956, 283, 384, 78, 2, 6566,    3546, 9560, 39, 4695, 222, 10923, 8587, 3822, 9950, 64333]
 run_id = 0
 
 print("build config files")
@@ -48,13 +48,13 @@ for hp in [{"ga": 0.28, "gsom": 0.34, "l_1": 6.1, "l_2_mul": 0.00012, "ip_mul": 
     l_2_mul = hp["l_2_mul"]
     ip_mul = hp["ip_mul"]
 
-    for llag in np.linspace(0, 30, 30*2):
+    for llag in [0, 3, 6, 10, 15, 20]:
         for seed in seeds:
             run_name = "%.2f_%.2f_%.2e_%.2e_%.1f__%d"%(ga, gsom, l_1, l_2_mul*l_1, llag, run_id)
             run_id += 1
 
-            params = {"name": run_name, "seed": seed, "init_sps": True, "track_sps": False, "N_train": 6000,
-                      "N_test": 600, "N_val": 600, "N_epochs": 45, "val_len": 100, "vals_per_epoch": 1,
+            params = {"name": run_name, "seed": seed, "init_sps": True, "track_sps": False, "breadcrumbs": [0, 1, 5, 10, 20, 40],
+                      "N_train": 6000, "N_test": 600, "N_val": 600, "N_epochs": 45, "val_len": 100, "vals_per_epoch": 1,
                       "model": {"dims": [4, 120, 3], "act": "sigmoid", "dt": 0.1, "gl": 0.1, "gb": 1.0,
                                 "ga": ga, "gd": 1.0,
                                 "gsom": gsom,

@@ -8,7 +8,7 @@ from sklearn.model_selection import ParameterSampler
 nodes_per_job = 1
 cores_per_job = 20
 
-name = "yinyang_pyralnet_vary_llag_50ms_4"
+name = "yinyang_pyralnet_vary_llag_50ms_3"
 config = "runs/"+name+"/config/" # params for each execution
 results = "runs/"+name+"/results/" # results will go here
 tmp = "runs/"+name+"/tmp/" #job files (config files per job)
