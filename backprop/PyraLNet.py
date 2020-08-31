@@ -234,9 +234,19 @@ class Net:
             l.W_pi = - l.W_down.copy()
             l.W_ip = l_n.W_up.copy() * l_n.gb / (l_n.gl + l_n.ga + l_n.gb) * (l.gl + l.gd) / l.gd
 
+    def load_weights(self, file):
+        weights = np.load(file)
+        for n in range(0, len(self.layer) - 1):
+            l = self.layer[n]
+            np.copyto(dst=l.W_up, src=weights[n][0])
+            np.copyto(dst=l.W_pi, src=weights[n][1])
+            np.copyto(dst=l.W_ip, src=weights[n][2])
+            np.copyto(dst=l.W_down, src=weights[n][3])
+        np.copyto(dst=self.layer[-1].W_up, src=weights[-1][0])
+
     def copy_weights(self):
         weights = []
-        for n in range(1, len(self.layer) - 1):
+        for n in range(0, len(self.layer) - 1):
             l = self.layer[n]
             weights += [[l.W_up.copy(), l.W_pi.copy(), l.W_ip.copy(), l.W_down.copy()]]
         weights += [[self.layer[-1].W_up.copy()]]
@@ -537,10 +547,16 @@ def soft_relu(x, thresh=15):
     res[ind] = np.log(1 + np.exp(x[ind]))
     return res
 
-
+# faster
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
+def sigmoid_stable(x, thresh=15):
+    res = np.ones_like(x)
+    ind = np.abs(x) < thresh
+    res[x < -thresh] = 0
+    res[ind] =  1 / (1 + np.exp(-x[ind]))
+    return res
 
 def time_str(sec):
     string = ""

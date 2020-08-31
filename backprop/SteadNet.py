@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import Dataset
 import fcntl
 from pathlib import Path
+import mnist
 
 
 dtype = pyral.dtype
@@ -351,6 +352,84 @@ class Net(pyral.Net):
 
         return ret[:-1] + tuple([val_res])
 
+    def train_long(self, X_train, Y_train, X_val, Y_val, n_epochs, val_len, n_out, classify, u_high=1.0,
+              u_low=0.1, n_passes=2, n_exposures=1, vals_per_epoch=1, info_update=1000, metric=None):
+
+        assert len(X_train) > vals_per_epoch
+        assert len(X_train) == len(Y_train)
+        assert len(X_val) == len(Y_val)
+
+        n_features = X_train.shape[1]
+
+        assert n_features == X_val.shape[1]
+        assert n_features == self.dims[0]
+        assert n_out == self.dims[-1]
+
+        if classify:
+            assert len(Y_train.shape) == 1
+            assert len(Y_val.shape) == 1
+        else:
+            assert (len(Y_train.shape) == 1 and n_out == 1) or Y_train.shape[1] == n_out
+            assert (len(Y_val.shape) == 1 and n_out == 1) or Y_val.shape[1] == n_out
+
+        len_split_train = round(len(X_train) / vals_per_epoch)  # validation after each split
+        vals_per_epoch = len(X_train) // len_split_train
+        print("%d validations per epoch" % (vals_per_epoch))
+
+        length = vals_per_epoch * val_len + len(X_train)
+
+        r_in_seq = np.zeros((length, n_features))
+        val_res = np.zeros((vals_per_epoch * n_epochs,
+                            3),
+                           dtype=dtype)  # [number of training patterns seen, mse of val result, metric of val result]
+
+        nudging_on = np.ones((length, 1), dtype=dtype)
+        val_idc = np.zeros((len(val_res), val_len))  # indices of validation patterns
+
+        for n in range(n_epochs):
+            if classify:
+                target_seq = np.ones((length, n_out), dtype=dtype) * u_low
+            else:
+                target_seq = np.zeros((length, n_out), dtype=dtype)
+            perm_train = np.random.permutation(len(X_train))
+            left = 0
+            left_tr = 0
+            for k in range(vals_per_epoch):
+                if k == vals_per_epoch - 1:
+                    right_tr = len(X_train)
+                else:
+                    right_tr = left_tr + len_split_train
+                right = left + right_tr - left_tr
+                r_in_seq[left: right] = X_train[perm_train[left_tr:right_tr]]
+                if classify:
+                    target_seq[np.arange(left, right), 1 * Y_train[
+                        perm_train[left_tr:right_tr]]] = u_high  # enforce Y_train is an integer array!
+                else:
+                    target_seq[left:right] = Y_train[perm_train[left_tr:right_tr]]
+                perm_val = np.random.permutation(len(X_val))[:val_len]
+                left = right
+                right = left + val_len
+                r_in_seq[left: right] = X_val[perm_val]
+                if classify:
+                    target_seq[
+                        np.arange(left, right), 1 * Y_val[perm_val]] = u_high  # enforce Y_val is an integer array!
+                else:
+                    target_seq[left:right] = Y_val[perm_val]
+                nudging_on[left: right, 0] = False
+                val_res[vals_per_epoch * n + k, 0] = right_tr + n * len(X_train)
+                val_idc[vals_per_epoch * n + k] = np.arange(left, right)
+                left = right
+                left_tr = right_tr
+
+            target_seq = np.hstack((target_seq, nudging_on))
+
+            print("%d/%d epochs:"%(n+1, n_epochs))
+            ret = self.run(r_in_seq, trgt_seq=target_seq, n_passes=n_passes, n_exposures=n_exposures,
+                           reset_weights=False, val_len=val_len, metric=metric, info_update=info_update)
+            val_res[n*vals_per_epoch:(n+1)*vals_per_epoch, 1:] = ret[-1] #valres
+
+        return ret[:-1] + tuple([val_res])
+
 
 def seq_to_trace(seq, dT):
     T = np.zeros(len(seq) * 2)
@@ -582,7 +661,7 @@ def yinyang_task(N_train=6000, N_test=600, n_epochs=45, N_hidden=120):
     plt.show()
 
     # test run
-    out_seq_test = net.run(X_test)
+    out_seq_test = net.run(X_test, learning_off=True, n_exposures=1)
     y_pred = np.argmax(out_seq_test, axis=1)
     acc = np.sum(y_pred == Y_test) / len(Y_test)
     print("test set accuracy: %f"%(acc))
@@ -590,6 +669,48 @@ def yinyang_task(N_train=6000, N_test=600, n_epochs=45, N_hidden=120):
     plt.title("test acc = %f"%(acc))
     plt.savefig("plots/SteadNet/yinyang_task/test result.png")
     plt.show()
+
+
+def mnist_task():
+    Path("plots/SteadNet/mnist_task").mkdir(parents=True, exist_ok=True)
+    X_train = mnist.train_images().reshape((-1, 28**2))
+    Y_train = mnist.train_labels()
+    rand_ind = np.random.permutation(len(X_train))
+    X_val = X_train[rand_ind[:5000]]
+    Y_val = Y_train[rand_ind[:5000]]
+    X_train = X_train[rand_ind[5000:]]
+    Y_train = Y_train[rand_ind[5000:]]
+    X_test = mnist.test_images().reshape((-1, 28 ** 2))
+    Y_test = mnist.test_labels()
+
+    params = {"dims": [28**2, 500, 500, 10], "dt": 0.1, "gl": 0.1, "gb": 1.0, "ga": 0.471, "gd": 1.0,
+              "gsom": 0.12,
+              "eta": {"up": [0.001111, 0.0003333, 0.0001], "pi": [0, 0, 0], "ip": [0.002222, 0.0006666]},
+              "bias": {"on": False, "val": 0.0},
+              "init_weights": {"up": 0.05, "down": 1, "pi": 1, "ip": 0.05}, "tau_w": 30, "noise": 0, "t_pattern": 100,
+              "out_lag": 80, "tau_0": 3, "learning_lag": 00}
+    net = Net(params, act=pyral.sigmoid_stable)
+    net.reflect()
+
+    out_seq, val_res = net.train_long(X_train, Y_train, X_val, Y_val, n_epochs=200, val_len=5000, vals_per_epoch=1,
+                                 n_out=10, classify=True, metric=pyral.accuracy, n_exposures=1)
+
+    # plot exponential moving average of validation error
+    plt.title("Validation error during training")
+    plt.semilogy(val_res[:, 0], pyral.ewma(val_res[:, 1], round(len(val_res) / 10)), label="mse")
+    plt.xlabel("trial")
+    plt.ylabel("mean squared error")
+    ax2 = plt.gca().twinx()
+    ax2.plot(val_res[:, 0], pyral.ewma(val_res[:, 2], round(len(val_res) / 10)), c="g", label="accuracy")
+    ax2.set_ylabel("accuracy")
+    plt.savefig("plots/SteadNet/yinyang_task/validation and accuracy during training.png")
+    plt.show()
+
+    # test run
+    out_seq_test = net.run(X_test, learning_off=True, n_exposures=1)
+    y_pred = np.argmax(out_seq_test, axis=1)
+    acc = np.sum(y_pred == Y_test) / len(Y_test)
+    print("test set accuracy: %f" % (acc))
 
 
 def run_yinyang(params, name, dir):
@@ -618,7 +739,7 @@ def run_yinyang(params, name, dir):
     ax2.set_ylabel("accuracy")
 
     # test run
-    out_seq_test = net.run(X_test, learning_off=True)
+    out_seq_test = net.run(X_test, learning_off=True, n_exposures=1)
     y_pred = np.argmax(out_seq_test, axis=1)
     acc = np.sum(y_pred == Y_test) / len(Y_test)
     print("test set accuracy : %f " % (acc))
@@ -634,7 +755,7 @@ def run_yinyang(params, name, dir):
         fcntl.flock(f, fcntl.LOCK_UN)
 
 
-yinyang_task()
+mnist_task()
 exit(0)
 
 import argparse, json
