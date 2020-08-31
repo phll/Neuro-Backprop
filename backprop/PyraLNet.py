@@ -235,7 +235,7 @@ class Net:
             l.W_ip = l_n.W_up.copy() * l_n.gb / (l_n.gl + l_n.ga + l_n.gb) * (l.gl + l.gd) / l.gd
 
     def load_weights(self, file):
-        weights = np.load(file)
+        weights = np.load(file, allow_pickle=True)
         for n in range(0, len(self.layer) - 1):
             l = self.layer[n]
             np.copyto(dst=l.W_up, src=weights[n][0])
@@ -284,11 +284,12 @@ class Net:
             learning_off=False, info_update=100, breadcrumbs=None):
         #### prepare run
         # record signals with time resolution rec_dt -> compress actual data
-        n_pattern = int(self.params["t_pattern"] / self.params["dt"])  # length of one input pattern
-        compress_len = int(np.round(rec_dt / self.params["dt"]))  # number of samples to average over
+        n_pattern = int(np.round(self.params["t_pattern"] / self.params["dt"]))  # length of one input pattern
+        compress_len = int(np.round(np.round(rec_dt / self.params["dt"])))  # number of samples to average over
+        print("t_pattern: %.3f ms,\trec_dt: %.3f ms"%(n_pattern * self.params["dt"], compress_len * rec_dt))
         if rec_dt > 0:
             rec_len = int(
-                np.ceil(len(in_seq) * self.params["t_pattern"] / rec_dt))  # number of averaged samples to record
+                np.ceil(len(in_seq) * n_pattern / compress_len))  # number of averaged samples to record (initial value is ignored!)
         records = []
 
         n_out_wait = round(
@@ -421,7 +422,7 @@ class Net:
         if rec_pots is not None:
             ret += [records]
         if rec_dt > 0:
-            ret += [np.linspace(0, rec_len * rec_dt, rec_len), r_in_trc.data]
+            ret += [np.linspace(self.params["dt"], rec_len * rec_dt, rec_len), r_in_trc.data] # start at dt as initial value is not recorded
             if trgt_seq is not None:
                 ret += [u_trgt_trc.data]
         if breadcrumbs is not None:

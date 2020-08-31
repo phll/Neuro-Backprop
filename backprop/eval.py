@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import PyraLNet as pyral
+import Dataset
 
 DO_VARY_LLAG_PLOT = False
 DO_LLAG_DEV_TRACES = True
@@ -31,4 +33,40 @@ if DO_VARY_LLAG_PLOT:
     plt.clf()
 
 
+#### Deviations between soma rates and predicted rates ####
 if DO_LLAG_DEV_TRACES:
+    N_patterns = 10
+    ga = 0.28
+    gsom = 0.39
+    gl = 0.1
+    gb, gd = 1.0, 1.0
+    X, Y = Dataset.YinYangDataset(size=100, flipped_coords=True, seed=40)[:N_patterns]
+    target_seq = np.ones((N_patterns, 3), dtype=pyral.dtype) * 0.1
+    target_seq[:, 1 * Y] = 1.0
+    params = {"dims": [4, 120, 3], "dt": 0.1, "gl": gl, "gb": gb, "ga": ga, "gd": gd,
+              "gsom": gsom,
+              "eta": {"up": [6.1, 0.00012], "pi": [0, 0], "ip": [0.00024, 0]},
+              "bias": {"on": True, "val": 0.5},
+              "init_weights": {"up": 0.1, "down": 1, "pi": 1, "ip": 0.1}, "tau_w": 30, "noise": 0, "t_pattern": 50,
+              "out_lag": 40, "tau_0": 3, "learning_lag": 0}
+    act = pyral.sigmoid
+    net = pyral.Net(params, act=act)
+    net.reflect()
+
+    rec_pots = [["pyr_soma", "pyr_basal", "inn_soma", "inn_dendrite"], ["pyr_soma", "pyr_basal"]]
+    records, T, r_in, u_trgt, out_seq = net.run(X, np.hstack((target_seq, np.ones((N_patterns,1)))), rec_pots=rec_pots, rec_dt=0.1)
+    T = T.reshape(N_patterns, -1)[0]
+
+    dev_hid_pyr = np.abs(act(records[0]["pyr_soma"].data) - gb/(ga+gl+gb)*act(records[0]["pyr_basal"].data)).reshape(N_patterns, -1, net.dims[1])
+    dev_hid_inn = np.abs(act(records[0]["inn_soma"].data) - gd/(gl+gd)*act(records[0]["inn_dendrite"].data)).reshape(N_patterns, -1, net.dims[2])
+    dev_out_pyr = np.abs(act(records[1]["pyr_soma"].data) - gb/(gl+gb)*act(records[1]["pyr_basal"].data)).reshape(N_patterns, -1, net.dims[2])
+
+    tr_hid_pyr = np.mean(dev_hid_pyr , axis=(0, 2))
+    tr_out_pyr = np.mean(dev_out_pyr, axis=(0, 2))
+    tr_hid_inn = np.mean(dev_hid_inn, axis=(0, 2))
+    plt.plot(T, tr_hid_pyr, label="hidden pyr")
+    plt.plot(T, tr_out_pyr, label="hidden inn")
+    plt.plot(T, tr_hid_inn, label="out pyr")
+    plt.ylim([0, np.max([tr_hid_inn, tr_hid_pyr, tr_out_pyr])*1.1])
+    plt.legend()
+    plt.show()
