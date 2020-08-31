@@ -79,7 +79,7 @@ class Layer:
                 u_next - u_i) + noise_on * self.noise * np.random.normal(size=len(self.u_inn["soma"])))
 
         # weight updates (lowpass weight changes)
-        if not learning_on:
+        if learning_on:
             gtot = self.gl + self.gb + self.ga
             dDelta_up = self.dt / self.tau_w * (- self.Delta_up + np.outer(
                 self.act(self.u_pyr["soma"]) - self.act(self.gb / gtot * self.u_pyr["basal"]), r_in_buf))
@@ -173,7 +173,7 @@ class OutputLayer:
             self.du_pyr += self.dt * self.gsom * (u_target - self.u_pyr["soma"])
 
         # weight updates (lowpass weight changes)
-        if not learning_on:
+        if learning_on:
             gtot = self.gl + self.gb
             dDelta_up = self.dt / self.tau_w * (- self.Delta_up + np.outer(
                 self.act(self.u_pyr["soma"]) - self.act(self.gb / gtot * self.u_pyr["basal"]), r_in_buf))
@@ -817,7 +817,6 @@ def run_yinyang(params, name, dir):
                         n_out=3, classify=True, u_high=1.0, u_low=0.1, metric=accuracy,
                         rec_pots=rec_pots, rec_dt=1000 if rec_pots is not None else 0,
                         breadcrumbs=breadcrumbs)
-    print(ret)
 
     if rec_pots is not None:
         records, T, r_in, u_trgt = ret[0], ret[1], ret[2], ret[3]
