@@ -344,6 +344,12 @@ class Net:
                 rcs["W_ip"] = Tracker(rec_len, l.W_ip, compress_len)
             if "W_pi" in rp:
                 rcs["W_pi"] = Tracker(rec_len, l.W_pi, compress_len)
+            if "Delta_up" in rp:
+                rcs["Delta_up"] = Tracker(rec_len, l.Delta_up, compress_len)
+            if "Delta_ip" in rp:
+                rcs["Delta_ip"] = Tracker(rec_len, l.Delta_ip, compress_len)
+            if "Delta_pi" in rp:
+                rcs["Delta_pi"] = Tracker(rec_len, l.Delta_pi, compress_len)
             records += [rcs]
 
         # init trackers for input rates signal and target potentials signal
