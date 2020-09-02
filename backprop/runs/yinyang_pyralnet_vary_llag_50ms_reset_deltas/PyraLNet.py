@@ -7,6 +7,9 @@ import fcntl
 
 dtype = np.float32
 
+############################
+############ reset Deltas for new pattern version #################################################################
+#################
 
 class Layer:
     def __init__(self, N_pyr, N_in, N_next, eta, params, act, bias, bias_val):
@@ -415,6 +418,12 @@ class Net:
                 print("leave a breadcrumb at pattern (index): %d"%(seq_idx))
                 weights += [self.copy_weights()]
 
+            ############ reset Deltas #################################################################
+            for l in self.layer[:-1]:
+                l.Delta_up.fill(0)
+                l.Delta_ip.fill(0)
+                l.Delta_pi.fill(0)
+            self.layer[-1].Delta_up.fill(0)
 
         # finalize recordings
         for rcs in records:
