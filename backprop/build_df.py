@@ -3,7 +3,7 @@ import pandas as pd
 
 ### builds pandas dataframe from results.txt file
 
-name = "yinyang_pyralnet_vary_llag_50ms_4"
+name = "yinyang_pyralnet_vary_tau_0_100ms_llag_15ms"
 results = "runs/"+name+"/results/"
 configs = "runs/"+name+"/config/"
 COLLAPSE_SEEDS = True
@@ -31,10 +31,12 @@ with open(results + "results.txt", "r") as f_res:
             ip1_mul = ip1 / l2
             l_pi = params["model"]["eta"]["pi"][0]
             learning_lag = params["model"]["learning_lag"]
+            tau_0 = params["model"]["tau_0"]
+            tau_w = params["model"]["tau_w"]
 
-            rows += [[run_id, ga, gsom, l1, l2, l2_mul, ip1, ip1_mul, l_pi, learning_lag,  test_acc]]
+            rows += [[run_id, ga, gsom, l1, l2, l2_mul, ip1, ip1_mul, l_pi, learning_lag, tau_0, tau_w, test_acc]]
 
-df = pd.DataFrame(rows, columns = ["run_id", "ga", "gsom", "l1", "l2", "l2_mul", "ip1", "ip1_mul", "l_pi", "learning_lag", "test accuracy"])
+df = pd.DataFrame(rows, columns = ["run_id", "ga", "gsom", "l1", "l2", "l2_mul", "ip1", "ip1_mul", "l_pi", "learning_lag", "tau_0", "tau_w", "test accuracy"])
 df = df.sort_values(by=["test accuracy"], ascending=False)
 
 df.to_csv (results + "results_df.csv", index = False, header=True)
@@ -43,7 +45,7 @@ print(df[:50])
 print(df)
 
 if COLLAPSE_SEEDS:
-    df_stats = df.groupby(by=["ga", "gsom", "l1", "l2", "l2_mul", "ip1", "ip1_mul", "l_pi", "learning_lag"]).agg(["mean", "std", "sem", "min", "max", "size"])
+    df_stats = df.groupby(by=["ga", "gsom", "l1", "l2", "l2_mul", "ip1", "ip1_mul", "l_pi", "learning_lag", "tau_0", "tau_w"]).agg(["mean", "std", "sem", "min", "max", "size"])
 
     print(df_stats[:50])
     print(df_stats)

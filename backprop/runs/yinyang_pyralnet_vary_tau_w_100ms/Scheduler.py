@@ -8,7 +8,7 @@ from sklearn.model_selection import ParameterSampler
 nodes_per_job = 1
 cores_per_job = 20
 
-name = "yinyang_pyralnet_vary_tau_0_100ms_llag_15ms"
+name = "yinyang_pyralnet_vary_tau_w_100ms"
 config = "runs/"+name+"/config/" # params for each execution
 results = "runs/"+name+"/results/" # results will go here
 tmp = "runs/"+name+"/tmp/" #job files (config files per job)
@@ -48,9 +48,9 @@ for hp in [{"ga": 0.28, "gsom": 0.34, "l_1": 6.1, "l_2_mul": 0.00012, "ip_mul": 
     l_2_mul = hp["l_2_mul"]
     ip_mul = hp["ip_mul"]
 
-    for tau_0 in np.linspace(0.5, 25, 25*2):
+    for tau_w in np.linspace(1, 100, 100):
         for seed in seeds:
-            run_name = "%.2f_%.2f_%.2e_%.2e_%.1f__%d"%(ga, gsom, l_1, l_2_mul*l_1, tau_0, run_id)
+            run_name = "%.2f_%.2f_%.2e_%.2e_%.1f__%d"%(ga, gsom, l_1, l_2_mul*l_1, tau_w, run_id)
             run_id += 1
 
             params = {"name": run_name, "seed": seed, "init_sps": True, "track_sps": False, "N_train": 6000,
@@ -61,9 +61,9 @@ for hp in [{"ga": 0.28, "gsom": 0.34, "l_1": 6.1, "l_2_mul": 0.00012, "ip_mul": 
                                 "eta": {"up": [l_1, l_1*l_2_mul], "pi": [0, 0],
                                         "ip": [ip_mul*l_1*l_2_mul, 0]},
                                 "bias": {"on": True, "val": 0.5},
-                                "init_weights": {"up": 0.1, "down": 1, "pi": 1, "ip": 0.1}, "tau_w": 30, "noise": 0,
+                                "init_weights": {"up": 0.1, "down": 1, "pi": 1, "ip": 0.1}, "tau_w": tau_w, "noise": 0,
                                 "t_pattern": 100,
-                                "out_lag": 80, "tau_0": tau_0, "learning_lag": 15}}
+                                "out_lag": 80, "tau_0": 3, "learning_lag": 0}}
 
             with open('%s.conf'%(config+run_name), 'w') as file:
                 file.write(json.dumps(params))
