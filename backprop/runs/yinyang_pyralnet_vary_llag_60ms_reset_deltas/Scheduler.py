@@ -8,7 +8,7 @@ from sklearn.model_selection import ParameterSampler
 nodes_per_job = 1
 cores_per_job = 20
 
-name = "yinyang_pyralnet_vary_llag_55ms_reset_deltas"
+name = "yinyang_pyralnet_vary_llag_60ms_reset_deltas"
 config = "runs/"+name+"/config/" # params for each execution
 results = "runs/"+name+"/results/" # results will go here
 tmp = "runs/"+name+"/tmp/" #job files (config files per job)
@@ -62,8 +62,8 @@ for hp in [{"ga": 0.28, "gsom": 0.34, "l_1": 6.1, "l_2_mul": 0.00012, "ip_mul": 
                                         "ip": [ip_mul*l_1*l_2_mul, 0]},
                                 "bias": {"on": True, "val": 0.5},
                                 "init_weights": {"up": 0.1, "down": 1, "pi": 1, "ip": 0.1}, "tau_w": 30, "noise": 0,
-                                "t_pattern": 55,
-                                "out_lag": 45, "tau_0": 3, "learning_lag": llag}}
+                                "t_pattern": 60,
+                                "out_lag": 50, "tau_0": 3, "learning_lag": llag}}
 
             with open('%s.conf'%(config+run_name), 'w') as file:
                 file.write(json.dumps(params))
