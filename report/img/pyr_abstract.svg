@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg8"
+   inkscape:version="1.0 (6e3e5246a0, 2020-05-07)"
+   sodipodi:docname="pyr_abstract.svg"
+   inkscape:export-filename="/home/paul/Studium/Neural Learning/report/img/pyr_abstract.png"
+   inkscape:export-xdpi="57.904716"
+   inkscape:export-ydpi="57.904716">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.35"
+     inkscape:cx="919.57946"
+     inkscape:cy="612.76703"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     inkscape:document-rotation="0"
+     showgrid="false"
+     inkscape:window-width="1853"
+     inkscape:window-height="1025"
+     inkscape:window-x="67"
+     inkscape:window-y="27"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       style="fill:#000000;stroke-width:0.264583"
+       id="path853"
+       d="" />
+    <path
+       style="fill:#000000;stroke-width:0.264583"
+       id="path847"
+       d="" />
+    <ellipse
+       style="fill:#d9d9d9;stroke-width:0.548656;fill-opacity:1"
+       id="path857"
+       cx="404.29358"
+       cy="-51.087891"
+       rx="31.575235"
+       ry="54.987518" />
+    <path
+       sodipodi:type="star"
+       style="fill:#d9d9d9;stroke-width:0.264583;fill-opacity:1"
+       id="path859"
+       sodipodi:sides="3"
+       sodipodi:cx="404.28948"
+       sodipodi:cy="239.03094"
+       sodipodi:r1="82.022453"
+       sodipodi:r2="24.962486"
+       sodipodi:arg1="2.6178773"
+       sodipodi:arg2="3.6650748"
+       inkscape:flatsided="true"
+       inkscape:rounded="0.15"
+       inkscape:randomized="0"
+       d="m 333.26074,280.05045 c -10.65718,-18.45381 49.70913,-123.03947 71.01919,-123.04196 21.31006,-0.002 81.70075,104.56911 71.04787,123.0254 -10.65288,18.45629 -131.40988,18.47037 -142.06706,0.0166 z"
+       inkscape:transform-center-x="1.9298452"
+       inkscape:transform-center-y="-19.247097" />
+    <ellipse
+       ry="40.587605"
+       rx="22.510563"
+       cy="-48.618809"
+       cx="438.14828"
+       id="path857-3"
+       style="fill:#d9d9d9;stroke-width:0.398001;fill-opacity:1"
+       transform="matrix(0.64664458,0.76279144,-0.68122485,0.73207424,0,0)" />
+    <ellipse
+       transform="matrix(-0.64664458,0.76279145,0.68122485,0.73207425,0,0)"
+       style="fill:#d9d9d9;stroke-width:0.398002;fill-opacity:1"
+       id="path857-3-6"
+       cx="-157.95576"
+       cy="572.49725"
+       rx="22.510563"
+       ry="40.587608" />
+    <rect
+       style="fill:#d9d9d9;stroke-width:0.220842;fill-opacity:1"
+       id="rect893"
+       width="12.324645"
+       height="182.99194"
+       x="398.13126"
+       y="-11.135163" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:18.2643px;line-height:1.25;font-family:sans-serif;baseline-shift:baseline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.342455"
+       x="392.34113"
+       y="-47.416229"
+       id="text899"><tspan
+         sodipodi:role="line"
+         id="tspan897"
+         x="392.34113"
+         y="-47.416229"
+         style="font-size:18.2643px;stroke-width:0.342455"><tspan
+           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:21.9171px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Italic';stroke-width:0.342455"
+           id="tspan905">v</tspan><tspan
+           style="font-size:14.6115px;baseline-shift:sub;stroke-width:0.342455"
+           id="tspan901">A</tspan><tspan
+           style="font-size:14.6115px;baseline-shift:super;stroke-width:0.342455"
+           id="tspan903"
+           dx="-2.5886416">P</tspan></tspan></text>
+    <text
+       id="text899-7"
+       y="243.48378"
+       x="392.59338"
+       style="font-style:normal;font-weight:normal;font-size:20.7289px;line-height:1.25;font-family:sans-serif;baseline-shift:baseline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.388667"
+       xml:space="preserve"><tspan
+         style="font-size:20.7289px;stroke-width:0.388667"
+         y="243.48378"
+         x="392.59338"
+         id="tspan897-5"
+         sodipodi:role="line"><tspan
+           id="tspan905-3"
+           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:24.8747px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Italic';stroke-width:0.388667">u</tspan><tspan
+           dx="0"
+           id="tspan903-6"
+           style="font-size:16.5832px;baseline-shift:super;stroke-width:0.388667">P</tspan></tspan></text>
+    <text
+       id="text899-2"
+       y="305.92838"
+       x="304.14499"
+       style="font-style:normal;font-weight:normal;font-size:16.3083px;line-height:1.25;font-family:sans-serif;baseline-shift:baseline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.30578"
+       xml:space="preserve"
+       transform="scale(0.99005559,1.0100443)"><tspan
+         style="font-size:16.3083px;stroke-width:0.30578"
+         y="305.92838"
+         x="304.14499"
+         id="tspan897-9"
+         sodipodi:role="line"><tspan
+           id="tspan905-1"
+           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.5699px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Italic';stroke-width:0.30578">v</tspan><tspan
+           id="tspan901-2"
+           style="font-size:13.0466px;baseline-shift:sub;stroke-width:0.30578">B</tspan><tspan
+           dx="-2.3114116"
+           id="tspan903-7"
+           style="font-size:13.0466px;baseline-shift:super;stroke-width:0.30578">P</tspan></tspan></text>
+  </g>
+</svg>
