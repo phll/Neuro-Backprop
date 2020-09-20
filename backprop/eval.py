@@ -21,6 +21,13 @@ if DO_VARY_LLAG_PLOT:
     pyral_perf_300 = pd.read_csv("./runs/yinyang_pyralnet_vary_llag_300ms/results/results_df_stats.csv", header=[0,1])
 
     plt.title("Yinyang PyraLNet performance vs learning-lag")
+
+    # SteadNet results
+    plt.plot([-10, 100], [97, 97], c="gray", ls="--")
+    plt.errorbar([10], [97], yerr=[0.6], c="gray", ls="--", markersize=0)
+    plt.text(2, 98, "SteadNet: $(97.0 \pm 0.6)\%$")
+    plt.xlim([-1, 32])
+
     llag, mean, std = pyral_perf["learning_lag"].to_numpy(), pyral_perf[("test accuracy", "mean")].to_numpy(), pyral_perf[("test accuracy", "std")].to_numpy()
     plt.errorbar(llag, mean*100, yerr=std*100, fmt='o', label="100 ms", markersize=4)
 
@@ -51,6 +58,13 @@ if DO_VARY_LLAG_RES_PLOT:
     pyral_perf_75 = pd.read_csv("./runs/yinyang_pyralnet_vary_llag_75ms_reset_deltas/results/results_df_stats.csv", header=[0,1])
 
     plt.title("Yinyang PyraLNet performance vs learning-lag (reset Deltas)")
+
+    # SteadNet results
+    plt.plot([-10, 100], [96.9, 96.9], c="gray", ls="--")
+    plt.errorbar([10], [96.9], yerr=[0.6], c="gray", ls="--", markersize=0)
+    plt.text(0, 98, "SteadNet (reset $\Delta$s): $(96.9 \pm 0.6)\%$")
+    plt.xlim([-1, 32])
+
     llag, mean, std = pyral_perf["learning_lag"].to_numpy(), pyral_perf[("test accuracy", "mean")].to_numpy(), pyral_perf[("test accuracy", "std")].to_numpy()
     plt.errorbar(llag, mean*100, yerr=std*100, fmt='o', label="100 ms reset", markersize=4)
 

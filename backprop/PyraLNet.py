@@ -417,8 +417,8 @@ class Net:
                 print("leave a breadcrumb at pattern (index): %d"%(seq_idx))
                 weights += [self.copy_weights()]
 
-            # reset Deltas if learning_lag > 0
-            if self.params["reset_deltas"] and n_learning_wait > 0:
+            # reset Deltas
+            if self.params["reset_deltas"]:
                 for l in self.layer[:-1]:
                     l.Delta_up.fill(0)
                     l.Delta_ip.fill(0)

@@ -37,7 +37,7 @@ class Layer(pyral.Layer):
     def apply(self):
         pass
 
-    def update_weights(self, r_in, n_exposures):
+    def update_weights(self, r_in, n_exposures, reset_deltas=False):
         # input rates
         r_pyr = np.zeros(self.u_pyr["soma"].shape[0] + self.bias, dtype=dtype)
         r_in_buf = np.zeros(len(r_in) + self.bias, dtype=dtype)
@@ -50,6 +50,10 @@ class Layer(pyral.Layer):
         #discretised lowpass
         dT = (self.params["t_pattern"] - self.params["learning_lag"])/n_exposures
         a = dT/(self.params["tau_w"]+dT)
+        if reset_deltas:
+            self.Delta_up.fill(0)
+            self.Delta_ip.fill(0)
+            self.Delta_pi.fill(0)
         self.Delta_up = self.Delta_up * (1 - a) + a * np.outer(
             self.act(self.u_pyr["soma"]) - self.act(self.gb / (self.gl + self.gb + self.ga) * self.u_pyr["basal"]), r_in_buf)
         self.Delta_ip = self.Delta_ip * (1 - a) + a * np.outer(
@@ -97,7 +101,7 @@ class OutputLayer(pyral.OutputLayer):
             l = self.gsom / (self.gl + self.gb + self.gsom)
             self.u_pyr["soma"][:] = (1 - l) * self.gb / (self.gl + self.gb) * self.u_pyr["basal"] + l * u_target
 
-    def update_weights(self, r_in, n_exposures):
+    def update_weights(self, r_in, n_exposures, reset_deltas=False):
         # input rates
         r_in_buf = np.zeros(len(r_in) + self.bias, dtype=dtype)
         if self.bias:
@@ -109,6 +113,8 @@ class OutputLayer(pyral.OutputLayer):
         # discretised lowpass
         dT = (self.params["t_pattern"] - self.params["learning_lag"]) / n_exposures
         a = dT / (self.params["tau_w"] + dT)
+        if reset_deltas:
+            self.Delta_up.fill(0)
         self.Delta_up = self.Delta_up * (1 - a) + a * np.outer(
             self.act(self.u_pyr["soma"]) - self.act(self.gb / (self.gl + self.gb) * self.u_pyr["basal"]),
             r_in_buf)
@@ -164,7 +170,7 @@ class Net(pyral.Net):
 
             #update weights
             if learning_on:
-                self.layer[0].update_weights(r_in, n_exposures=n_exposures)
+                self.layer[0].update_weights(r_in, n_exposures=n_exposures, reset_deltas=(self.params["reset_deltas"] and k==0))
                 for n in range(1, len(self.layer)):
                     self.layer[n].update_weights(self.act(self.layer[n - 1].u_pyr["soma"]), n_exposures=n_exposures)
 
@@ -565,8 +571,8 @@ def stead_vs_sim_learning(N=5000, seed=45, reflect=False):
     plt.show()
 
 
-def yinyang_task(N_train=6000, N_test=600, n_epochs=45, runs=10):
-    Path("plots/SteadNet/yinyang_task").mkdir(parents=True, exist_ok=True)
+def yinyang_task(N_train=6000, N_test=600, n_epochs=45, runs=10, reset_deltas=False):
+    Path("plots/SteadNet/yinyang_task%s"%("_reset_deltas" if reset_deltas else "")).mkdir(parents=True, exist_ok=True)
 
     np.random.seed(42)
     seeds = np.random.randint(10, 12000, runs)
@@ -581,7 +587,7 @@ def yinyang_task(N_train=6000, N_test=600, n_epochs=45, runs=10):
                   "eta": {"up": [6.1, 0.00012], "pi": [0, 0], "ip": [0.00024, 0]},
                   "bias": {"on": True, "val": 0.5},
                   "init_weights": {"up": 0.1, "down": 1, "pi": 1, "ip": 0.1}, "tau_w": 30, "noise": 0, "t_pattern": 100,
-                  "out_lag": 80, "tau_0": 3, "learning_lag": 20, "reset_deltas": False}
+                  "out_lag": 80, "tau_0": 3, "learning_lag": 20, "reset_deltas": reset_deltas}
         net = Net(params, act=pyral.sigmoid)
         net.reflect()
 
@@ -657,4 +663,4 @@ def mnist_task():
     print("test set accuracy: %f" % (acc))
 
 
-yinyang_task()
+yinyang_task(reset_deltas=True)
