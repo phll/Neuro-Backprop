@@ -7,8 +7,6 @@ import fcntl
 
 dtype = np.float32
 
-############ reset Deltas for new pattern-version
-
 
 class Layer:
     def __init__(self, N_pyr, N_in, N_next, eta, params, act, bias, bias_val):
@@ -288,7 +286,7 @@ class Net:
         # record signals with time resolution rec_dt -> compress actual data
         n_pattern = int(np.round(self.params["t_pattern"] / self.params["dt"]))  # length of one input pattern
         compress_len = int(np.round(np.round(rec_dt / self.params["dt"])))  # number of samples to average over
-        print("t_pattern: %.3f ms,\trec_dt: %.3f ms"%(n_pattern * self.params["dt"], compress_len * rec_dt))
+        print("t_pattern: %.3f ms,\trec_dt: %.3f ms"%(n_pattern * self.params["dt"], compress_len * self.params["dt"]))
         if rec_dt > 0:
             rec_len = int(
                 np.ceil(len(in_seq) * n_pattern / compress_len))  # number of averaged samples to record (initial value is ignored!)
@@ -420,7 +418,7 @@ class Net:
                 weights += [self.copy_weights()]
 
             # reset Deltas if learning_lag > 0
-            if n_learning_wait > 0:
+            if self.params["reset_deltas"] and n_learning_wait > 0:
                 for l in self.layer[:-1]:
                     l.Delta_up.fill(0)
                     l.Delta_ip.fill(0)
@@ -632,14 +630,33 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
               "eta": {"up": [0.01, 0.005], "pi": [0.01, 0], "ip": [0.01, 0]},
               "bias": {"on": False, "val": 0.0},
               "init_weights": {"up": 1, "down": 1, "pi": 1, "ip": 1}, "tau_w": 30, "noise": 0, "t_pattern": 100,
-              "out_lag": 3 * 10, "tau_0": 3, "learning_lag": 0}
+              "out_lag": 3 * 10, "tau_0": 3, "learning_lag": 0, "reset_deltas": False}
     net = Net(params, act)
 
     # does self-predicting state emerge?
     rec_pots = [["pyr_soma", "pyr_apical", "inn_soma", "W_up", "W_ip", "W_pi"],
                 ["pyr_soma", "W_up"]]
 
-    '''print("-----Pre-training-----")
+    # test before learning
+    print("-----Test before learning-----")
+    r_in_seq = np.random.sample((20, N_in))
+    target_seq = np.hstack((teacher(r_in_seq), np.zeros((len(r_in_seq), 1))))
+    rec_test, T, r_in_test, u_target_test, out_seq_test, val_res_test = net.run(r_in_seq, trgt_seq=target_seq,
+                                                                                learning_off=True, val_len=1,
+                                                                                rec_pots=rec_pots, rec_dt=1)
+    plt.title("Test run before learning")
+    plt.plot(T, u_target_test[:, 0], label="$u_{target}[0]$")
+    plt.plot(T, rec_test[-1]["pyr_soma"].data[:, 0], label="$u_{out}[0]$")
+    plt.plot(T, u_target_test[:, 1], label="$u_{target}[1]$")
+    plt.plot(T, rec_test[-1]["pyr_soma"].data[:, 1], label="$u_{out}[1]$")
+    plt.xlabel("time / ms")
+    plt.ylabel("soma potentials")
+    plt.legend()
+    plt.savefig("plots/PyraLNet/mimic_task/test_run_output_before.png")
+    plt.show()
+
+    '''
+    print("-----Pre-training-----")
     records, T, r_in, out_seq = net.run(np.random.sample((10*N, N_in)), rec_pots=rec_pots, rec_dt=1000)
 
     plt.title("Lateral Weights pre-training")
@@ -665,11 +682,11 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
     plt.semilogy(val_res[:, 0], ewma(val_res[:, 1], round(len(val_res) / 10)))
     plt.xlabel("pattern")
     plt.ylabel("mean squared error")
-    plt.savefig("plots/PyraLNet/mimic_task/validation error during training.png")
+    plt.savefig("plots/PyraLNet/mimic_task/validation_error_during_training.png")
     plt.show()
 
     # how does sps evolve?
-    plt.title("Lateral Weights Evolution")
+    plt.title("Lateral Weights Evolution during Training")
     plt.semilogy(T / 100, np.sum((records[0]["W_ip"].data - records[1]["W_up"].data) ** 2, axis=(1, 2)),
                  label="$||W^{(0)}_{ip}-W^{(1)}_{up}||^2$")
     plt.semilogy(T / 100, np.sum((records[0]["W_pi"].data + net.layer[0].W_down) ** 2, axis=(1, 2)),
@@ -677,7 +694,7 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
     plt.xlabel("pattern")
     plt.ylabel("squared error")
     plt.legend()
-    plt.savefig("plots/PyraLNet/mimic_task/lateral weights during.png")
+    plt.savefig("plots/PyraLNet/mimic_task/lateral_weights_during.png")
     plt.show()
 
     plt.figure(figsize=(12, 8))
@@ -698,7 +715,7 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.9, box.height])
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-    plt.savefig("plots/PyraLNet/mimic_task/forward weights evolution.png")
+    plt.savefig("plots/PyraLNet/mimic_task/forward_weights_evolution.png")
     plt.show()
 
     # test
@@ -706,7 +723,8 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
     r_in_seq = np.random.sample((20, N_in))
     target_seq = np.hstack((teacher(r_in_seq), np.zeros((len(r_in_seq), 1))))
     rec_test, T, r_in_test, u_target_test, out_seq_test, val_res_test = net.run(r_in_seq, trgt_seq=target_seq,
-                                                                                val_len=1, rec_pots=rec_pots, rec_dt=1)
+                                                                                learning_off=True, val_len=1,
+                                                                                rec_pots=rec_pots, rec_dt=1)
 
     plt.title("Test run")
     plt.plot(T, u_target_test[:, 0], label="$u_{target}[0]$")
@@ -716,75 +734,8 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
     plt.xlabel("time / ms")
     plt.ylabel("soma potentials")
     plt.legend()
-    plt.savefig("plots/PyraLNet/mimic_task/test run output.png")
+    plt.savefig("plots/PyraLNet/mimic_task/test_run_output.png")
     plt.show()
-
-
-def bars_task(square_size=3, N_train=3000, N_test=300, n_epochs=2, N_hidden=30):
-    Path("plots/PyraLNet/bars_task").mkdir(parents=True, exist_ok=True)
-
-    X_train, Y_train = Dataset.BarsDataset(square_size, samples_per_class=round(N_train / square_size), seed=42)[:]
-    X_val, Y_val = Dataset.BarsDataset(square_size, samples_per_class=round(N_test / square_size), seed=None)[:]
-    X_test, Y_test = Dataset.BarsDataset(square_size, samples_per_class=round(N_test / square_size), seed=None)[:]
-    params = {"dims": [square_size ** 2, N_hidden, 3], "dt": 0.1, "gl": 0.1, "gb": 1.0, "ga": 0.8, "gd": 1.0,
-              "gsom": 0.8,
-              "eta": {"up": [0.01, 0.005], "pi": [0.01, 0], "ip": [0.01, 0]},
-              "bias": {"pyr_on": False, "inter_on": False, "val": 0.0},
-              "init_weights": {"up": 0.4, "down": 1, "pi": 0.5, "ip": 0.5}, "tau_w": 30, "noise": 0, "t_pattern": 100,
-              "out_lag": 80, "tau_0": 3, "learning_lag": 0}
-    net = Net(params)
-
-    # self-predicting state
-    print("----learning self-predicting state----")
-    rec_pots = [["W_up", "W_ip", "W_pi"], ["W_up"]]
-    records, T, r_in, out_seq = net.run(X_train[np.random.permutation(N_train)], rec_pots=rec_pots, rec_dt=100)
-
-    plt.title("Lateral Weights Convergence")
-    plt.semilogy(T / 100, np.sum((records[0]["W_ip"].data - records[1]["W_up"].data) ** 2, axis=(1, 2)),
-                 label="$||W^{(0)}_{ip}-W^{(1)}_{up}||^2$")
-    plt.semilogy(T / 100, np.sum((records[0]["W_pi"].data + net.layer[0].W_down) ** 2, axis=(1, 2)),
-                 label="$||W^{(0)}_{pi}+W^{(0)}_{down}||^2$")
-    plt.xlabel("trial")
-    plt.ylabel("squared error")
-    plt.legend()
-    plt.savefig("plots/PyraLNet/bar_task/lateral weights convergence.png")
-    plt.show()
-
-    # training
-    print("----training----")
-    records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=n_epochs,
-                                                           val_len=20, vals_per_epoch=15,
-                                                           n_out=3, classify=True, u_high=1.0, u_low=0.1,
-                                                           metric=accuracy, rec_pots=rec_pots, rec_dt=400)
-
-    # plot exponential moving average of validation error
-    plt.title("Validation error during training")
-    plt.semilogy(val_res[:, 0], ewma(val_res[:, 1], round(len(val_res) / 10)), label="mse")
-    plt.xlabel("trial")
-    plt.ylabel("mean squared error")
-    ax2 = plt.gca().twinx()
-    ax2.plot(val_res[:, 0], ewma(val_res[:, 2], round(len(val_res) / 10)), c="g", label="accuracy")
-    ax2.set_ylabel("accuracy")
-    plt.savefig("plots/PyraLNet/bar_task/validation and accuracy during training.png")
-    plt.show()
-
-    plt.title("Lateral Weights Convergence")
-    plt.semilogy(T / 100, np.sum((records[0]["W_ip"].data - records[1]["W_up"].data) ** 2, axis=(1, 2)),
-                 label="$||W^{(0)}_{ip}-W^{(1)}_{up}||^2$")
-    plt.semilogy(T / 100, np.sum((records[0]["W_pi"].data + net.layer[0].W_down) ** 2, axis=(1, 2)),
-                 label="$||W^{(0)}_{pi}+W^{(0)}_{down}||^2$")
-    plt.xlabel("trial")
-    plt.ylabel("squared error")
-    plt.legend()
-    plt.savefig("plots/PyraLNet/bar_task/lateral weights convergence during training.png")
-    plt.show()
-
-    # test run
-    print("----testing----")
-    out_seq_test = net.run(X_test)
-    y_pred = np.argmax(out_seq_test, axis=1)
-    acc = np.sum(y_pred == Y_test) / len(Y_test)
-    print("test set accuracy: %f" % (acc))
 
 
 def yinyang_task(N_train=6000, N_test=600, n_epochs=45, N_hidden=120, mul=0.2):
@@ -798,7 +749,7 @@ def yinyang_task(N_train=6000, N_test=600, n_epochs=45, N_hidden=120, mul=0.2):
               "eta": {"up": [mul * 0.03, mul * 0.01], "pi": [0, 0], "ip": [mul * 0.02, 0]},
               "bias": {"pyr_on": False, "inter_on": False, "val": 0.0},
               "init_weights": {"up": 0.1, "down": 1, "pi": 1, "ip": 1}, "tau_w": 30, "noise": 0, "t_pattern": 100,
-              "out_lag": 80, "tau_0": 3, "learning_lag": 0}
+              "out_lag": 80, "tau_0": 3, "learning_lag": 0, "reset_deltas": False}
     net = Net(params, act=sigmoid)
     net.reflect()
 
@@ -919,21 +870,27 @@ def run_yinyang(params, name, dir):
         fcntl.flock(f, fcntl.LOCK_UN)
 
 
+CLUSTER = False
+
 if __name__ == "__main__":
 
-    import argparse, json
+    if CLUSTER:
+        import argparse, json
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('task', help='task')
-    parser.add_argument('--config', help='config file')
-    parser.add_argument('--dir', help='store results here')
+        parser = argparse.ArgumentParser()
+        parser.add_argument('task', help='task')
+        parser.add_argument('--config', help='config file')
+        parser.add_argument('--dir', help='store results here')
 
-    args = parser.parse_args()
+        args = parser.parse_args()
 
-    with open(args.config) as json_file:
-        params = json.load(json_file)
+        with open(args.config) as json_file:
+            params = json.load(json_file)
 
-    if args.task == "yinyang":
-        run_yinyang(params, params["name"], args.dir)
+        if args.task == "yinyang":
+            run_yinyang(params, params["name"], args.dir)
+        else:
+            raise Exception("task not known!")
+
     else:
-        raise Exception("task not known!")
+        mimic_task()

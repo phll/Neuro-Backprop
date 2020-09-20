@@ -6,10 +6,10 @@ import os
 import json
 import pandas as pd
 
-DO_VARY_LLAG_PLOT = False
+DO_VARY_LLAG_PLOT = True
 DO_VARY_LLAG_RES_PLOT = True #reset deltas
-DO_VARY_TAU_0 = False
-DO_VARY_TAU_W = False
+DO_VARY_TAU_0 = True
+DO_VARY_TAU_W = True
 DO_LLAG_DEV_TRACES = False
 
 ##### Vary Learning-Lag #####
@@ -20,12 +20,12 @@ if DO_VARY_LLAG_PLOT:
     pyral_perf_50_2 = pd.read_csv("./runs/yinyang_pyralnet_vary_llag_50ms_2/results/results_df_stats.csv", header=[0,1])
     pyral_perf_300 = pd.read_csv("./runs/yinyang_pyralnet_vary_llag_300ms/results/results_df_stats.csv", header=[0,1])
 
-    plt.title("Yinyang PyraLNet performance")
+    plt.title("Yinyang PyraLNet performance vs learning-lag")
     llag, mean, std = pyral_perf["learning_lag"].to_numpy(), pyral_perf[("test accuracy", "mean")].to_numpy(), pyral_perf[("test accuracy", "std")].to_numpy()
     plt.errorbar(llag, mean*100, yerr=std*100, fmt='o', label="100 ms", markersize=4)
 
     llag, mean, std = pyral_perf_200["learning_lag"].to_numpy(), pyral_perf_200[("test accuracy", "mean")].to_numpy(), pyral_perf_200[("test accuracy", "std")].to_numpy()
-    #plt.errorbar(llag, mean*100, yerr=std*100, fmt='^', label="200 ms", markersize=4)
+    plt.errorbar(llag, mean*100, yerr=std*100, fmt='^', label="200 ms", markersize=4)
 
     llag, mean, std = pyral_perf_50["learning_lag"].to_numpy(), pyral_perf_50[("test accuracy", "mean")].to_numpy(), pyral_perf_50[("test accuracy", "std")].to_numpy()
     plt.errorbar(llag, mean*100, yerr=std*100, fmt='s', label="50 ms", markersize=4)
@@ -33,43 +33,36 @@ if DO_VARY_LLAG_PLOT:
     #llag, mean, std = pyral_perf_50_2["learning_lag"].to_numpy(), pyral_perf_50_2[("test accuracy", "mean")].to_numpy(), pyral_perf_50_2[("test accuracy", "std")].to_numpy()
     #plt.errorbar(llag, mean*100, yerr=std*100, fmt='s', label="50 ms _2", markersize=4)
 
-    llag, mean, std = pyral_perf_300["learning_lag"].to_numpy(), pyral_perf_300[("test accuracy", "mean")].to_numpy(), pyral_perf_300[("test accuracy", "std")].to_numpy()
-    #plt.errorbar(llag, mean*100, yerr=std*100, fmt='*', label="300 ms", markersize=4, c="purple")
+    llag, mean, std = pyral_perf_300["learning_lag"].to_numpy()[:30], pyral_perf_300[("test accuracy", "mean")].to_numpy()[:30], pyral_perf_300[("test accuracy", "std")].to_numpy()[:30]
+    plt.errorbar(llag, mean*100, yerr=std*100, fmt='*', label="300 ms", markersize=4, c="purple")
 
-    '''plt.legend()
+    plt.legend()
     plt.xlabel("learning-lag / ms")
     plt.ylabel("accuracy / %")
     plt.savefig("eval/yinyang_acc_vs_llag.png")
-    plt.clf()'''
+    plt.clf()
 
 
 ##### Vary Learning-Lag (reset Deltas) #####
 if DO_VARY_LLAG_RES_PLOT:
     pyral_perf = pd.read_csv("./runs/yinyang_pyralnet_vary_llag_reset_deltas/results/results_df_stats.csv", header=[0,1])
-    #pyral_perf_200 = pd.read_csv("./runs/yinyang_pyralnet_vary_llag_200ms_reset_deltas/results/results_df_stats.csv", header=[0,1])
     pyral_perf_50 = pd.read_csv("./runs/yinyang_pyralnet_vary_llag_50ms_reset_deltas/results/results_df_stats.csv", header=[0,1])
     pyral_perf_60 = pd.read_csv("./runs/yinyang_pyralnet_vary_llag_50ms_reset_deltas/results/results_df_stats.csv", header=[0,1])
     pyral_perf_75 = pd.read_csv("./runs/yinyang_pyralnet_vary_llag_75ms_reset_deltas/results/results_df_stats.csv", header=[0,1])
-    #pyral_perf_300 = pd.read_csv("./runs/yinyang_pyralnet_vary_llag_300ms_reset_deltas/results/results_df_stats.csv", header=[0,1])
 
-    plt.title("Yinyang PyraLNet performance (reset Deltas)")
+    plt.title("Yinyang PyraLNet performance vs learning-lag (reset Deltas)")
     llag, mean, std = pyral_perf["learning_lag"].to_numpy(), pyral_perf[("test accuracy", "mean")].to_numpy(), pyral_perf[("test accuracy", "std")].to_numpy()
     plt.errorbar(llag, mean*100, yerr=std*100, fmt='o', label="100 ms reset", markersize=4)
 
-    #llag, mean, std = pyral_perf_200["learning_lag"].to_numpy(), pyral_perf_200[("test accuracy", "mean")].to_numpy(), pyral_perf_200[("test accuracy", "std")].to_numpy()
-    #plt.errorbar(llag, mean*100, yerr=std*100, fmt='^', label="200 ms", markersize=4)
-
     llag, mean, std = pyral_perf_50["learning_lag"].to_numpy(), pyral_perf_50[("test accuracy", "mean")].to_numpy(), pyral_perf_50[("test accuracy", "std")].to_numpy()
-    plt.errorbar(llag, mean*100, yerr=std*100, fmt='s', label="50 ms reset", markersize=4)
+    plt.errorbar(llag, mean*100, yerr=std*100, fmt='^', label="50 ms reset", markersize=4)
 
     llag, mean, std = pyral_perf_60["learning_lag"].to_numpy(), pyral_perf_60[("test accuracy", "mean")].to_numpy(), pyral_perf_60[("test accuracy", "std")].to_numpy()
     plt.errorbar(llag+0.1, mean*100, yerr=std*100, fmt='s', label="60 ms reset", markersize=4)
 
     llag, mean, std = pyral_perf_75["learning_lag"].to_numpy(), pyral_perf_75[("test accuracy", "mean")].to_numpy(), pyral_perf_75[("test accuracy", "std")].to_numpy()
-    plt.errorbar(llag, mean*100, yerr=std*100, fmt='s', label="75 ms reset", markersize=4)
+    plt.errorbar(llag, mean*100, yerr=std*100, fmt='*', label="75 ms reset", markersize=4)
 
-    #llag, mean, std = pyral_perf_300["learning_lag"].to_numpy(), pyral_perf_300[("test accuracy", "mean")].to_numpy(), pyral_perf_300[("test accuracy", "std")].to_numpy()
-    #plt.errorbar(llag, mean*100, yerr=std*100, fmt='*', label="300 ms", markersize=4, c="purple")
 
     plt.legend()
     plt.xlabel("learning-lag / ms")
@@ -83,13 +76,13 @@ if DO_VARY_TAU_0:
     pyral_perf = pd.read_csv("./runs/yinyang_pyralnet_vary_tau_0/results/results_df_stats.csv", header=[0,1])
     pyral_perf_100_15 = pd.read_csv("./runs/yinyang_pyralnet_vary_tau_0_100ms_llag_15ms/results/results_df_stats.csv", header=[0,1])
 
-    plt.title("Yinyang PyraLNet performance")
+    plt.title("Yinyang PyraLNet performance vs overblending")
 
     tau_0, mean, std = pyral_perf["tau_0"].to_numpy(), pyral_perf[("test accuracy", "mean")].to_numpy(), pyral_perf[("test accuracy", "std")].to_numpy()
     plt.errorbar(tau_0, mean*100, yerr=std*100, fmt='s', label="50 ms, l-lag: 0ms", markersize=4)
 
     tau_0, mean, std = pyral_perf_100_15["tau_0"].to_numpy(), pyral_perf_100_15[("test accuracy", "mean")].to_numpy(), pyral_perf_100_15[("test accuracy", "std")].to_numpy()
-    plt.errorbar(tau_0, mean*100, yerr=std*100, fmt='s', label="100 ms, l-lag: 15ms", markersize=4)
+    plt.errorbar(tau_0, mean*100, yerr=std*100, fmt='^', label="100 ms, l-lag: 15ms", markersize=4)
 
     plt.legend()
     plt.xlabel("$\\tau_0$ / ms")
@@ -103,13 +96,13 @@ if DO_VARY_TAU_W:
     pyral_perf = pd.read_csv("./runs/yinyang_pyralnet_vary_tau_w/results/results_df_stats.csv", header=[0,1])
     pyral_perf_100 = pd.read_csv("./runs/yinyang_pyralnet_vary_tau_w_100ms/results/results_df_stats.csv", header=[0,1])
 
-    plt.title("Yinyang PyraLNet performance")
+    plt.title("Yinyang PyraLNet performance vs plasticity time constant")
 
     tau_w, mean, std = pyral_perf["tau_w"].to_numpy(), pyral_perf[("test accuracy", "mean")].to_numpy(), pyral_perf[("test accuracy", "std")].to_numpy()
     plt.errorbar(tau_w, mean*100, yerr=std*100, fmt='s', label="50 ms", markersize=4)
 
     tau_w, mean, std = pyral_perf_100["tau_w"].to_numpy(), pyral_perf_100[("test accuracy", "mean")].to_numpy(), pyral_perf_100[("test accuracy", "std")].to_numpy()
-    plt.errorbar(tau_w+0.2, mean*100, yerr=std*100, fmt='s', label="100 ms", markersize=4)
+    plt.errorbar(tau_w+0.2, mean*100, yerr=std*100, fmt='^', label="100 ms", markersize=4)
 
     plt.legend()
     plt.xlabel("$\\tau_w$ / ms")

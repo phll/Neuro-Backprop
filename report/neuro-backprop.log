@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017/Debian) (preloaded format=pdflatex 2019.8.27)  14 SEP 2020 21:25
+This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017/Debian) (preloaded format=pdflatex 2019.8.27)  20 SEP 2020 19:54
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -498,7 +498,33 @@ Package: bm 2017/01/16 v1.2c Bold Symbol Support (DPC/FMi)
 \symboldsymbols=\mathgroup8
 LaTeX Font Info:    Redeclaring math alphabet \mathbf on input line 141.
 LaTeX Info: Redefining \bm on input line 207.
-) (./neuro-backprop.aux)
+)
+(/usr/share/texlive/texmf-dist/tex/latex/listings/listings.sty
+\lst@mode=\count106
+\lst@gtempboxa=\box28
+\lst@token=\toks29
+\lst@length=\count107
+\lst@currlwidth=\dimen124
+\lst@column=\count108
+\lst@pos=\count109
+\lst@lostspace=\dimen125
+\lst@width=\dimen126
+\lst@newlines=\count110
+\lst@lineno=\count111
+\lst@maxwidth=\dimen127
+
+(/usr/share/texlive/texmf-dist/tex/latex/listings/lstmisc.sty
+File: lstmisc.sty 2015/06/04 1.6 (Carsten Heinz)
+\c@lstnumber=\count112
+\lst@skipnumbers=\count113
+\lst@framebox=\box29
+)
+(/usr/share/texlive/texmf-dist/tex/latex/listings/listings.cfg
+File: listings.cfg 2015/06/04 1.6 listings configuration
+))
+Package: listings 2015/06/04 1.6 (Carsten Heinz)
+
+(./neuro-backprop.aux)
 \openout1 = `neuro-backprop.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 27.
@@ -550,17 +576,17 @@ LaTeX Font Info:    ... okay on input line 27.
 
 (/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count106
-\scratchdimen=\dimen124
-\scratchbox=\box28
-\nofMPsegments=\count107
-\nofMParguments=\count108
-\everyMPshowfont=\toks29
-\MPscratchCnt=\count109
-\MPscratchDim=\dimen125
-\MPnumerator=\count110
-\makeMPintoPDFobject=\count111
-\everyMPtoPDFconversion=\toks30
+\scratchcounter=\count114
+\scratchdimen=\dimen128
+\scratchbox=\box30
+\nofMPsegments=\count115
+\nofMParguments=\count116
+\everyMPshowfont=\toks30
+\MPscratchCnt=\count117
+\MPscratchDim=\dimen129
+\MPnumerator=\count118
+\makeMPintoPDFobject=\count119
+\everyMPtoPDFconversion=\toks31
 ) (/usr/share/texlive/texmf-dist/tex/latex/oberdiek/epstopdf-base.sty
 Package: epstopdf-base 2016/05/15 v2.6 Base part for package epstopdf
 
@@ -613,6 +639,7 @@ G,.JBIG2,.JB2,.eps]
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
+\c@lstlisting=\count120
 LaTeX Font Info:    Try loading font information for U+msa on input line 29.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
@@ -683,51 +710,172 @@ File: img/network.png Graphic file (type png)
 <use img/network.png>
 Package pdftex.def Info: img/network.png  used on input line 73.
 (pdftex.def)             Requested size: 358.25389pt x 301.36882pt.
-[2]
-Underfull \hbox (badness 10000) in paragraph at lines 109--111
+[2] [3 <./img/network.png>]
+Underfull \hbox (badness 10000) in paragraph at lines 124--126
 
  []
 
-[3 <./img/network.png>]
-Underfull \hbox (badness 10000) in paragraph at lines 123--125
-
- []
-
-
-Overfull \hbox (7.70914pt too wide) detected at line 145
+[4]
+Overfull \hbox (7.70914pt too wide) detected at line 146
 \OML/cmm/b/it/12 v[] \OT1/cmr/m/n/12 = \OML/cmm/b/it/12 W[] [] \OMS/cmsy/m/n/12
  ^^Y \OML/cmm/m/it/12 ^^U\OML/cmm/b/it/12 W[]\OML/cmm/m/it/12 ^^^[]\OT1/cmr/m/n
 /12 ([]) [] \OMS/cmsy/m/n/12 ^^Q \OML/cmm/m/it/12 ^^U\OML/cmm/b/it/12 W[]D[] []
  \OML/cmm/m/it/12 ;
  []
 
-[4] [5] (./neuro-backprop.aux) ) 
+<img/stability.png, id=38, 1488.56125pt x 815.045pt>
+File: img/stability.png Graphic file (type png)
+<use img/stability.png>
+Package pdftex.def Info: img/stability.png  used on input line 167.
+(pdftex.def)             Requested size: 502.27628pt x 275.00984pt.
+[5]
+<img/PyraLNet/mimic_task/test_run_output_before.png, id=43, 462.528pt x 346.896
+pt>
+File: img/PyraLNet/mimic_task/test_run_output_before.png Graphic file (type png
+)
+<use img/PyraLNet/mimic_task/test_run_output_before.png>
+Package pdftex.def Info: img/PyraLNet/mimic_task/test_run_output_before.png  us
+ed on input line 191.
+(pdftex.def)             Requested size: 234.39699pt x 175.79976pt.
+<img/PyraLNet/mimic_task/test_run_output.png, id=44, 462.528pt x 346.896pt>
+File: img/PyraLNet/mimic_task/test_run_output.png Graphic file (type png)
+<use img/PyraLNet/mimic_task/test_run_output.png>
+Package pdftex.def Info: img/PyraLNet/mimic_task/test_run_output.png  used on i
+nput line 192.
+(pdftex.def)             Requested size: 234.39699pt x 175.79976pt.
+<img/PyraLNet/mimic_task/validation_error_during_training.png, id=45, 462.528pt
+ x 346.896pt>
+File: img/PyraLNet/mimic_task/validation_error_during_training.png Graphic file
+ (type png)
+<use img/PyraLNet/mimic_task/validation_error_during_training.png>
+Package pdftex.def Info: img/PyraLNet/mimic_task/validation_error_during_traini
+ng.png  used on input line 193.
+(pdftex.def)             Requested size: 234.39699pt x 175.79976pt.
+<img/PyraLNet/mimic_task/lateral_weights_during.png, id=46, 462.528pt x 346.896
+pt>
+File: img/PyraLNet/mimic_task/lateral_weights_during.png Graphic file (type png
+)
+<use img/PyraLNet/mimic_task/lateral_weights_during.png>
+Package pdftex.def Info: img/PyraLNet/mimic_task/lateral_weights_during.png  us
+ed on input line 194.
+(pdftex.def)             Requested size: 234.39699pt x 175.79976pt.
+ [6 <./img/stability.png>]
+Underfull \hbox (badness 10000) in paragraph at lines 212--215
+
+ []
+
+[7 <./img/PyraLNet/mimic_task/test_run_output_before.png> <./img/PyraLNet/mimic
+_task/test_run_output.png> <./img/PyraLNet/mimic_task/validation_error_during_t
+raining.png> <./img/PyraLNet/mimic_task/lateral_weights_during.png>]
+<img/SteadNet/stead_vs_sim/div_pots.png, id=60, 650.43pt x 433.62pt>
+File: img/SteadNet/stead_vs_sim/div_pots.png Graphic file (type png)
+<use img/SteadNet/stead_vs_sim/div_pots.png>
+Package pdftex.def Info: img/SteadNet/stead_vs_sim/div_pots.png  used on input 
+line 222.
+(pdftex.def)             Requested size: 241.10194pt x 160.73209pt.
+<img/SteadNet/stead_vs_sim/div_pots_sps.png, id=61, 650.43pt x 433.62pt>
+File: img/SteadNet/stead_vs_sim/div_pots_sps.png Graphic file (type png)
+<use img/SteadNet/stead_vs_sim/div_pots_sps.png>
+Package pdftex.def Info: img/SteadNet/stead_vs_sim/div_pots_sps.png  used on in
+put line 223.
+(pdftex.def)             Requested size: 241.10194pt x 160.73209pt.
+<img/SteadNet/stead_vs_sim/div_weights.png, id=62, 650.43pt x 433.62pt>
+File: img/SteadNet/stead_vs_sim/div_weights.png Graphic file (type png)
+<use img/SteadNet/stead_vs_sim/div_weights.png>
+Package pdftex.def Info: img/SteadNet/stead_vs_sim/div_weights.png  used on inp
+ut line 224.
+(pdftex.def)             Requested size: 241.10194pt x 160.73209pt.
+<img/SteadNet/stead_vs_sim/div_weights_sps.png, id=63, 650.43pt x 433.62pt>
+File: img/SteadNet/stead_vs_sim/div_weights_sps.png Graphic file (type png)
+<use img/SteadNet/stead_vs_sim/div_weights_sps.png>
+Package pdftex.def Info: img/SteadNet/stead_vs_sim/div_weights_sps.png  used on
+ input line 225.
+(pdftex.def)             Requested size: 241.10194pt x 160.73209pt.
+
+Underfull \hbox (badness 1253) in paragraph at lines 228--228
+[][]\OT1/cmr/m/n/10 The de-vi-a-tion of the two vec-tor or ma-trix quan-ti-ties
+ $\OML/cmm/b/it/10 a$ \OT1/cmr/m/n/10 and $\OML/cmm/b/it/10 b$ \OT1/cmr/m/n/10 
+w.r.t. $\OML/cmm/b/it/10 a$ \OT1/cmr/m/n/10 is de-fined as $[](\OML/cmm/m/it/10
+ n\OT1/cmr/m/n/10 ) =
+ []
+
+[8] [9 <./img/SteadNet/stead_vs_sim/div_pots.png> <./img/SteadNet/stead_vs_sim/
+div_pots_sps.png> <./img/SteadNet/stead_vs_sim/div_weights.png> <./img/SteadNet
+/stead_vs_sim/div_weights_sps.png>]
+Overfull \hbox (22.59898pt too wide) in paragraph at lines 256--256
+[] \OT1/cmtt/m/n/12 "init_weights": {"up": 0.1, "down": 1, "pi": 1, "ip": 0.1},
+ "tau_w": 30, "noise": 0,[] 
+ []
+
+<img/eval/yinyang_acc_vs_llag.png, id=78, 462.528pt x 346.896pt>
+File: img/eval/yinyang_acc_vs_llag.png Graphic file (type png)
+<use img/eval/yinyang_acc_vs_llag.png>
+Package pdftex.def Info: img/eval/yinyang_acc_vs_llag.png  used on input line 2
+69.
+(pdftex.def)             Requested size: 234.39699pt x 175.79976pt.
+<img/eval/yinyang_acc_vs_llag_res_dels.png, id=79, 462.528pt x 346.896pt>
+File: img/eval/yinyang_acc_vs_llag_res_dels.png Graphic file (type png)
+<use img/eval/yinyang_acc_vs_llag_res_dels.png>
+Package pdftex.def Info: img/eval/yinyang_acc_vs_llag_res_dels.png  used on inp
+ut line 270.
+(pdftex.def)             Requested size: 234.39699pt x 175.79976pt.
+<img/eval/yinyang_acc_vs_tau_0.png, id=80, 462.528pt x 346.896pt>
+File: img/eval/yinyang_acc_vs_tau_0.png Graphic file (type png)
+<use img/eval/yinyang_acc_vs_tau_0.png>
+Package pdftex.def Info: img/eval/yinyang_acc_vs_tau_0.png  used on input line 
+271.
+(pdftex.def)             Requested size: 234.39699pt x 175.79976pt.
+<img/eval/yinyang_acc_vs_tau_w.png, id=81, 462.528pt x 346.896pt>
+File: img/eval/yinyang_acc_vs_tau_w.png Graphic file (type png)
+<use img/eval/yinyang_acc_vs_tau_w.png>
+Package pdftex.def Info: img/eval/yinyang_acc_vs_tau_w.png  used on input line 
+272.
+(pdftex.def)             Requested size: 234.39699pt x 175.79976pt.
+<img/best_sps_result.png, id=82, 794.97pt x 361.35pt>
+File: img/best_sps_result.png Graphic file (type png)
+<use img/best_sps_result.png>
+Package pdftex.def Info: img/best_sps_result.png  used on input line 278.
+(pdftex.def)             Requested size: 502.27628pt x 228.31335pt.
+<img/best_sps_weights.png, id=83, 462.528pt x 346.896pt>
+File: img/best_sps_weights.png Graphic file (type png)
+<use img/best_sps_weights.png>
+Package pdftex.def Info: img/best_sps_weights.png  used on input line 279.
+(pdftex.def)             Requested size: 251.13814pt x 188.35321pt.
+[10] [11 <./img/eval/yinyang_acc_vs_llag.png> <./img/eval/yinyang_acc_vs_llag_r
+es_dels.png> <./img/eval/yinyang_acc_vs_tau_0.png> <./img/eval/yinyang_acc_vs_t
+au_w.png>] [12 <./img/best_sps_result.png> <./img/best_sps_weights.png>]
+(./neuro-backprop.aux) ) 
 Here is how much of TeX's memory you used:
- 3480 strings out of 494805
- 45032 string characters out of 6178000
- 112844 words of memory out of 5000000
- 6729 multiletter control sequences out of 15000+600000
- 17319 words of font info for 64 fonts, out of 8000000 for 9000
+ 4932 strings out of 494805
+ 67371 string characters out of 6178000
+ 134762 words of memory out of 5000000
+ 8143 multiletter control sequences out of 15000+600000
+ 19742 words of font info for 73 fonts, out of 8000000 for 9000
  81 hyphenation exceptions out of 8191
- 41i,10n,31p,687b,252s stack positions out of 5000i,500n,10000p,200000b,80000s
-</usr/share/texlive/texmf-dist/fonts/type1/publ
-ic/amsfonts/cm/cmbx12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/ams
-fonts/cm/cmex10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
-cmextra/cmex8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm
-/cmmi12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6
-.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></
-usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb></usr/s
-hare/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmmib8.pfb></usr/sh
-are/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/tex
-live/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/te
-xmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texlive/texmf-dis
-t/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/
-type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/
-public/amsfonts/cm/cmsy8.pfb>
-Output written on neuro-backprop.pdf (5 pages, 268642 bytes).
+ 41i,12n,32p,1095b,282s stack positions out of 5000i,500n,10000p,200000b,80000s
+</usr/share/texlive/texmf-dist/fonts/type1/public/amsfo
+nts/cm/cmbx12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm
+/cmex10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/
+cmex8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.
+pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></
+usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb></usr/sha
+re/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texl
+ive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></usr/share/texlive/tex
+mf-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb></usr/share/texlive/texmf-di
+st/fonts/type1/public/amsfonts/cmextra/cmmib8.pfb></usr/share/texlive/texmf-dis
+t/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts
+/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/texmf-dist/fonts/type1/
+public/amsfonts/cm/cmr17.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/
+amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy
+10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb>
+</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/
+share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti12.pfb></usr/share/
+texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt12.pfb>
+Output written on neuro-backprop.pdf (12 pages, 1219814 bytes).
 PDF statistics:
- 86 PDF objects out of 1000 (max. 8388607)
- 55 compressed objects within 1 object stream
+ 163 PDF objects out of 1000 (max. 8388607)
+ 89 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
- 26 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 101 words of extra memory for PDF output out of 10000 (max. 10000000)
 

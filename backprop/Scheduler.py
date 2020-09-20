@@ -63,7 +63,7 @@ for hp in [{"ga": 0.28, "gsom": 0.34, "l_1": 6.1, "l_2_mul": 0.00012, "ip_mul": 
                                 "bias": {"on": True, "val": 0.5},
                                 "init_weights": {"up": 0.1, "down": 1, "pi": 1, "ip": 0.1}, "tau_w": 30, "noise": 0,
                                 "t_pattern": 55,
-                                "out_lag": 45, "tau_0": 3, "learning_lag": llag}}
+                                "out_lag": 45, "tau_0": 3, "learning_lag": llag, "reset_deltas": True}}
 
             with open('%s.conf'%(config+run_name), 'w') as file:
                 file.write(json.dumps(params))
