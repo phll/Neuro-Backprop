@@ -6,6 +6,8 @@ import os
 import json
 import pandas as pd
 
+# Generate a few plots for report
+
 DO_VARY_LLAG_PLOT = True
 DO_VARY_LLAG_RES_PLOT = True #reset deltas
 DO_VARY_TAU_0 = True

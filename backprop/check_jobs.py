@@ -3,6 +3,8 @@ import numpy as np
 import fcntl
 import os
 
+# check on jobs. How many succeeded? How many failed?
+
 name = "yinyang_pyralnet_vary_llag_55ms_reset_deltas"
 tmp = "runs/"+name+"/tmp/"
 results = "runs/"+name+"/results/"
@@ -21,14 +23,13 @@ except subprocess.CalledProcessError:
 #load nemo-ids of all submitted jobs
 job_nemo_ids = np.loadtxt(tmp + "job_nemo_ids", skiprows=1, dtype=np.int)
 
-#'missing' jobs
+#'missing' jobs (might be finished successfully or might have failed)
 cancelled_jobs = [ job[0] for job in job_nemo_ids if job[1] not in listed_jobs]
 print("cancelled jobs: ", cancelled_jobs, len(cancelled_jobs))
 
 
-#check which jobs failed
+#check which jobs failed (A job might not fail completely part only partially (ie some of its subprocesses))
 restart_jobs = []
-delete_lines = []
 n_success = 0
 n_part = 0
 n_failed = 0
@@ -43,13 +44,14 @@ while True:
     elif x=="n":
         break
 
-with open(results + "results.txt", "r+") as f_results: #are processes found in results -> successfull
+# are subprocesses found in results -> successfull
+with open(results + "results.txt", "r+") as f_results:
     fcntl.flock(f_results, fcntl.LOCK_EX)
-    file_content = f_results.read()
+    file_content = f_results.read() # whole content of the results file
 
     for job in cancelled_jobs:
         print("check job %d... "%(job), end='')
-        #load names of all processes of job from job-file
+        # load names of all processes of job from job-file
         f = open(tmp + str(job)+".job", "r")
         f.readline()
         run_names = []
@@ -88,7 +90,7 @@ print("%d of %d jobs running or waiting"%(len(running_jobs), len(job_nemo_ids)))
 print("%d (%d -> %d runs) of %d jobs (partially) failed"%(n_failed, n_part, len(rebundle), len(job_nemo_ids)))
 
 
-#rebundle partially failed jobs
+# rebundle partially failed jobs
 if do_rebundling:
     n_new_jobs = int(np.ceil(len(rebundle)/cores_per_job))
     id_off = np.max(job_nemo_ids[:,0]) + 1
@@ -110,7 +112,7 @@ if do_rebundling:
 
 print("restarting jobs: ", restart_jobs, len(restart_jobs))
 
-#restart jobs
+# restart jobs
 for job in restart_jobs:
     result = subprocess.check_output('msub -N %s_%d_%d -l nodes=1:ppn=20,walltime=28:00:00,pmem=6GB job_pyral.sh "%s"' % (
     name, job + 1, len(job_nemo_ids), os.getcwd() + "/" + tmp + "%d.job" % (job)), shell=True)
@@ -118,7 +120,7 @@ for job in restart_jobs:
     print(n_id)
     job_nemo_ids[job] = n_id
 
-#save new nemo ids
+# save new nemo ids
 f_ids = open(tmp + "job_nemo_ids", "w")
 f_ids.write("job_id\t\tnemo_id\n")
 for i in range(len(job_nemo_ids)):

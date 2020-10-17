@@ -9,7 +9,23 @@ dtype = np.float32
 
 
 class Layer:
+    '''
+    Class for hidden layers
+    '''
     def __init__(self, N_pyr, N_in, N_next, eta, params, act, bias, bias_val):
+        '''
+        Initialize all potentials and weights and set parameters.
+        Parameters
+        ----------
+        N_pyr:      Hidden dimension (number of pyramidals)
+        N_in:       Dimension of previous layer
+        N_next:     Dimension of next layer (number of pyramidals in next layer)
+        eta:        Dictionary with learning rates for the plastic connections
+        params:     Parameters (conductances, plasticity time constant tau_w, noise level, timestep dt)
+        act:        Activation function (must be a function taking one argument)
+        bias:       Whether to add an artifical bias neuron to upwards connection and pyramidal to inter connection
+        bias_val:   Value of the bias neuron (rate)
+        '''
         self.u_pyr = {"basal": np.zeros(N_pyr, dtype=dtype), "apical": np.zeros(N_pyr, dtype=dtype),
                       "soma": np.zeros(N_pyr, dtype=dtype)}
         self.u_inn = {"dendrite": np.zeros(N_next, dtype=dtype), "soma": np.zeros(N_next, dtype=dtype)}
@@ -47,7 +63,17 @@ class Layer:
         self.params = params
 
     def update(self, r_in, u_next, learning_on, noise_on=True):
+        '''
+        Compute potential updates and weights for one timestep. Potential updates have to be applied by calling apply(),
+        after update was called for all the other layers.
+        Parameters
+        ----------
+        r_in:           Input rates (from previous layer)
+        u_next:         Soma potentials of pyramidals of next layer
+        learning_on:    Switch learning on or off
+        noise_on:       Switch noise on or off
 
+        '''
         #### rates
         r_pyr = np.zeros(self.u_pyr["soma"].shape[0] + self.bias, dtype=dtype)
         r_in_buf = np.zeros(r_in.shape[0] + self.bias, dtype=dtype)
@@ -102,6 +128,13 @@ class Layer:
         self.u_inn["soma"] += self.du_inn
 
     def reset(self, reset_weights=True):
+        '''
+        Reset all potentials and Deltas (weight update matrices) to zero.
+        Parameters
+        ----------
+        reset_weights:  Also draw weights again from random distribution.
+
+        '''
         self.u_pyr["basal"].fill(0)
         self.u_pyr["soma"].fill(0)
         self.u_pyr["apical"].fill(0)
@@ -120,7 +153,9 @@ class Layer:
 
 
 class OutputLayer:
-
+    '''
+    Class for output layer. See documention of Layer for more info about the different methods.
+    '''
     def __init__(self, N_out, N_in, eta, params, act, bias, bias_val):
         self.u_pyr = {"basal": np.zeros(N_out, dtype=dtype), "soma": np.zeros(N_out, dtype=dtype)}
 
@@ -151,7 +186,6 @@ class OutputLayer:
         self.params = params
 
     def update(self, r_in, u_target, learning_on, noise_on=True):
-
         #### input rates
         r_in_buf = np.zeros(r_in.shape[0] + self.bias, dtype=dtype)
         if self.bias:
@@ -213,21 +247,27 @@ class Net:
         bias = params["bias"]["on"]
         bias_val = params["bias"]["val"]
         eta = {}
+        # construct all layers
         for n in range(1, len(dims) - 1):
             eta["up"] = params["eta"]["up"][n - 1]
             eta["pi"] = params["eta"]["pi"][n - 1]
             eta["ip"] = params["eta"]["ip"][n - 1]
             self.layer += [Layer(dims[n], dims[n - 1], dims[n + 1], eta, params, self.act, bias, bias_val)]
+        # construct output layer
         eta["up"] = params["eta"]["up"][-1]
         eta["pi"] = params["eta"]["pi"][-1]
         eta["ip"] = params["eta"]["ip"][-1]
         self.layer += [OutputLayer(dims[-1], dims[-2], eta, params, self.act, bias, bias_val)]
+        # print couplings
         print("feedback-couplings: lambda_out = %f, lambda_inter = %f, lambda_hidden = %f"
               % (params["gsom"] / (params["gl"] + params["gb"] + params["gsom"]),
                  params["gsom"] / (params["gl"] + params["gd"] + params["gsom"]),
                  params["ga"] / (params["gl"] + params["gb"] + params["ga"])))
 
     def reflect(self):
+        '''
+        Initialize network in self-predicting state. Forwards and top-down connections are kept.
+        '''
         for i in range(len(self.layer) - 1):
             l = self.layer[i]
             l_n = self.layer[i + 1]
@@ -235,6 +275,9 @@ class Net:
             l.W_ip = l_n.W_up.copy() * l_n.gb / (l_n.gl + l_n.ga + l_n.gb) * (l.gl + l.gd) / l.gd
 
     def load_weights(self, file):
+        '''
+        load weights from numpy file (generated with dump weights)
+        '''
         weights = np.load(file, allow_pickle=True)
         for n in range(0, len(self.layer) - 1):
             l = self.layer[n]
@@ -245,6 +288,9 @@ class Net:
         np.copyto(dst=self.layer[-1].W_up, src=weights[-1][0])
 
     def copy_weights(self):
+        '''
+        return a copy of network weights [[W_up, W_pi, W_ip, W_down], ..., [W_up]]
+        '''
         weights = []
         for n in range(0, len(self.layer) - 1):
             l = self.layer[n]
@@ -253,6 +299,9 @@ class Net:
         return weights
 
     def dump_weights(self, file):
+        '''
+        dump network weights to file
+        '''
         np.save(file, self.copy_weights())
 
     def update_params(self, params):
@@ -268,6 +317,17 @@ class Net:
             l.set_params(self.params, eta)
 
     def update(self, r_in, u_target, learning_on=True, records=None, noise_on=True):
+        '''
+        update network potentials by one timestep
+        Parameters
+        ----------
+        r_in:           input rate vector
+        u_target:       target potential vector (might be None)
+        learning_on:    switch learning on or off
+        records:        list of quantities to be recorded
+        noise_on:       switch noise source in network dynamics on or off
+
+        '''
         self.layer[0].update(r_in, self.layer[1].u_pyr["soma"], learning_on, noise_on=noise_on)
         for n in range(1, len(self.layer) - 1):
             self.layer[n].update(self.act(self.layer[n - 1].u_pyr["soma"]), self.layer[n + 1].u_pyr["soma"],
@@ -280,8 +340,40 @@ class Net:
                 for _, r in records[i].items():
                     r.record()
 
-    def run(self, in_seq, trgt_seq=None, reset_weights=False, val_len=0, metric=None, rec_pots=None, rec_dt=0.0,
+
+    def run(self, in_seq, trgt_seq=None, reset_weights=False, val_len=0, metric=None, rec_quants=None, rec_dt=0.0,
             learning_off=False, info_update=100, breadcrumbs=None):
+        '''
+        Run a full simulation for the whole sequence of input patterns in in_seq.
+        Input and target patterns are transitioned smoothly by lowpass filtering.
+        Nudging can be switched on or off per pattern.
+        If val_len > 0 and trgt_seq is not None, target patterns with disabled nudging are used for validation.
+        Parameters
+        ----------
+        in_seq:         sequence of input patterns. Expects N x dim_0 (input layer size) array.
+        trgt_seq:       sequence of target potentials (might be None). Expects N x (dim_out+1) array. Last column has
+                        to take values in {0,1}, determining if nudging is switched on (1) or off (0) for each pattern.
+        reset_weights:  randomly reset weight connections before starting (soma potentials are always reset to zero)?
+        val_len:        if val_len > 0 and trgt_seq is not None all patterns for which trgt_seq[:,-1] is Zero are used
+                        for validation. In this case, chunks of length val_len for which trgt_seq[:,-1]==0 are expected.
+                        During validation learning and noise is always disabled.
+        metric:         metric used during validation
+        rec_quants:     list of all quantities to track. If provided, a list for each layer, starting from the hidden layer,
+                        is expected, eg. [["pyr_soma", "pyr_basal"], ["pyr_apical", "inn_soma", "inn_dendrite"], ...].
+        rec_dt:         specifies time resolution for tracking of rec_quants and smoothed input and teaching traces.
+        learning_off:   switch learning off
+        info_update:    print info about remaining time after each info_update patterns
+        breadcrumbs:    list of pattern indices after which all network weights should be saved
+
+        Returns
+        -------
+        [(recorded quantities; if rec_quants!=None),
+         (time array with resolution dT, the generated (smoothed) input rate trace recorded with rec_dt,
+            (the generated (smoothed) target potential trace recorded with rec_dt; if trgt_seq!=None); if rec_dt>0),
+         (saved weights; if breadcrumbs!=None),
+         sequence of outputs (averaged soma potentials of output layer) with size N x dim_out,
+         (N x 2 array containing the validation results [output layer MSE, metric]; if val_len>0)]
+        '''
         #### prepare run
         # record signals with time resolution rec_dt -> compress actual data
         n_pattern = int(np.round(self.params["t_pattern"] / self.params["dt"]))  # length of one input pattern
@@ -292,16 +384,16 @@ class Net:
                 np.ceil(len(in_seq) * n_pattern / compress_len))  # number of averaged samples to record (initial value is ignored!)
         records = []
 
-        n_out_wait = round(
+        n_out_lag = round(
             self.params["out_lag"] / self.params["dt"])  # steps to wait per pattern before filling output buffer
-        n_learning_wait = round(
+        n_learning_lag = round(
             self.params["learning_lag"] / self.params["dt"])  # steps to wait per pattern before enabling learning
-        if n_out_wait >= n_pattern:
+        if n_out_lag >= n_pattern:
             raise Exception("output lag to big!")
-        if n_learning_wait >= n_pattern:
+        if n_learning_lag >= n_pattern:
             raise Exception("learning lag to big!")
 
-        print("out-lag: %.3f ms,\tlearning-lag: %.3f ms"%(n_out_wait * self.params["dt"], n_learning_wait * self.params["dt"]))
+        print("out-lag: %.3f ms,\tlearning-lag: %.3f ms"%(n_out_lag * self.params["dt"], n_learning_lag * self.params["dt"]))
 
         r_in = in_seq[0].copy()  # current input rates
         if trgt_seq is not None:
@@ -320,37 +412,37 @@ class Net:
         if breadcrumbs is not None:
             weights = []
 
-        # reset/initialize and add trackers for potentials that should be recorded
+        # reset/initialize and add trackers for quantities that should be recorded
         for i in range(len(self.layer)):
             l = self.layer[i]
             l.reset(reset_weights)
-            if rec_pots is None:
+            if rec_quants is None:
                 continue
-            rp = rec_pots[i]
+            rq = rec_quants[i]
             rcs = {}
-            if "pyr_soma" in rp:
+            if "pyr_soma" in rq:
                 rcs["pyr_soma"] = Tracker(rec_len, l.u_pyr["soma"], compress_len)
-            if "pyr_basal" in rp:
+            if "pyr_basal" in rq:
                 rcs["pyr_basal"] = Tracker(rec_len, l.u_pyr["basal"], compress_len)
-            if "pyr_apical" in rp:
+            if "pyr_apical" in rq:
                 rcs["pyr_apical"] = Tracker(rec_len, l.u_pyr["apical"], compress_len)
-            if "inn_dendrite" in rp:
+            if "inn_dendrite" in rq:
                 rcs["inn_dendrite"] = Tracker(rec_len, l.u_inn["dendrite"], compress_len)
-            if "inn_soma" in rp:
+            if "inn_soma" in rq:
                 rcs["inn_soma"] = Tracker(rec_len, l.u_inn["soma"], compress_len)
-            if "W_up" in rp:
+            if "W_up" in rq:
                 rcs["W_up"] = Tracker(rec_len, l.W_up, compress_len)
-            if "W_down" in rp:
+            if "W_down" in rq:
                 rcs["W_down"] = Tracker(rec_len, l.W_down, compress_len)
-            if "W_ip" in rp:
+            if "W_ip" in rq:
                 rcs["W_ip"] = Tracker(rec_len, l.W_ip, compress_len)
-            if "W_pi" in rp:
+            if "W_pi" in rq:
                 rcs["W_pi"] = Tracker(rec_len, l.W_pi, compress_len)
-            if "Delta_up" in rp:
+            if "Delta_up" in rq:
                 rcs["Delta_up"] = Tracker(rec_len, l.Delta_up, compress_len)
-            if "Delta_ip" in rp:
+            if "Delta_ip" in rq:
                 rcs["Delta_ip"] = Tracker(rec_len, l.Delta_ip, compress_len)
-            if "Delta_pi" in rp:
+            if "Delta_pi" in rq:
                 rcs["Delta_pi"] = Tracker(rec_len, l.Delta_pi, compress_len)
             records += [rcs]
 
@@ -368,28 +460,29 @@ class Net:
         for seq_idx in range(len(in_seq)):
             nudging_on = trgt_seq[seq_idx, -1] if trgt_seq is not None else False
             if not nudging_on and val_len > 0:
+                # this patterns is for validation! (val_idx will be >=0 during validation)
                 val_idx += 1
             for i in range(n_pattern):
                 # lowpass input rates
                 r_in[:] += self.params["dt"] / self.params["tau_0"] * (in_seq[seq_idx] - r_in)
                 if rec_dt > 0:
                     r_in_trc.record()
-                learning_on = i >= n_learning_wait and not learning_off
+                learning_on = i >= n_learning_lag and not learning_off
 
                 # lowpass target potentials and update network
                 if trgt_seq is not None:
                     u_trgt[:] += self.params["dt"] / self.params["tau_0"] * (trgt_seq[seq_idx, :-1] - u_trgt)
                     if rec_dt > 0:
                         u_trgt_trc.record()
-                    l_on = learning_on and val_idx < 0
+                    l_on = learning_on and val_idx < 0 # no learning during validation
                     self.update(r_in, u_trgt if nudging_on else None, records=records, learning_on=l_on,
                                 noise_on=val_idx < 0)
-                    if i >= n_out_wait:
-                        out_seq[seq_idx] += self.layer[-1].u_pyr["soma"] / (n_pattern - n_out_wait)
+                    if i >= n_out_lag: # after out_lag start to average output soma potentials for output sequence
+                        out_seq[seq_idx] += self.layer[-1].u_pyr["soma"] / (n_pattern - n_out_lag)
                 else:
                     self.update(r_in, None, records=records, learning_on=learning_on)
-                    if i >= n_out_wait:
-                        out_seq[seq_idx] += self.layer[-1].u_pyr["soma"] / (n_pattern - n_out_wait)
+                    if i >= n_out_lag:
+                        out_seq[seq_idx] += self.layer[-1].u_pyr["soma"] / (n_pattern - n_out_lag)
 
             # print validation results if finished
             if val_idx >= 0 and val_idx == val_len - 1:
@@ -404,7 +497,7 @@ class Net:
                     print("%s: %f" % (name, mres))
                     vres[1] = mres
                 val_res += [vres]
-                val_idx = -1
+                val_idx = -1 # now disable validation mode
 
             # print some info
             if seq_idx > 0 and seq_idx % info_update == 0:
@@ -417,7 +510,7 @@ class Net:
                 print("leave a breadcrumb at pattern (index): %d"%(seq_idx))
                 weights += [self.copy_weights()]
 
-            # reset Deltas
+            # reset Deltas (weight update matrices) after each pattern if corresponding flag is set
             if self.params["reset_deltas"]:
                 for l in self.layer[:-1]:
                     l.Delta_up.fill(0)
@@ -433,9 +526,10 @@ class Net:
             if trgt_seq is not None:
                 u_trgt_trc.finalize()
 
-        # return records (with res rec_dt), a time signal (rec_dt), the input rates signal (rec_dt), target pot signal (rec_dt) and the output sequence
+        # return records (with res rec_dt), a time signal (rec_dt), the input rates signal (rec_dt),
+        # target pot signal (rec_dt), breadcrumbs, the output sequence and validation results
         ret = []
-        if rec_pots is not None:
+        if rec_quants is not None:
             ret += [records]
         if rec_dt > 0:
             ret += [np.linspace(self.params["dt"], rec_len * rec_dt, rec_len), r_in_trc.data] # start at dt as initial value is not recorded
@@ -450,8 +544,42 @@ class Net:
 
 
     def train(self, X_train, Y_train, X_val, Y_val, n_epochs, val_len, n_out, classify, u_high=1.0,
-              u_low=0.1, rec_pots=None, rec_dt=0.0,
+              u_low=0.1, rec_quants=None, rec_dt=0.0,
               vals_per_epoch=1, reset_weights=False, info_update=100, metric=None, breadcrumbs=None):
+        '''
+        Create an input and target sequence from training and validation datasets and run simulation.
+        Per epoch the code tries to insert vals_per_epoch validation chunks. Training and validation chunks are
+        alternating, with the first chunk being a training chunk and the last a validation chunk (if vals_per_epoch>0).
+        If given potentials or weights can be recorded with rec_quants and network weights can be saved after
+        specified epochs (breadcrumbs).
+        Parameters
+        ----------
+        X_train:        Training input rates dataset
+        Y_train:        Training dataset - true labels (classification) or true signals (regression)
+        X_val:          Validation input rates dataset
+        Y_val:          Validation dataset - true labels or true signals (for regression)
+        n_epochs:       Number of epochs. Each epoch the training set is shuffled and presented again
+        val_len:        Number of patterns (drawn randomly from validation sets) per validation chunk
+        n_out:          Output layer dimension.
+        classify:       True for classification task, false for regression task
+        u_high:         Target potential corresponding to logical high (classification task)
+        u_low:          Target potential corresponding to logical false (classification task)
+        rec_quants:     Quantities to record during simulation. List of quantities per layer, starting from first hidden
+                        layer, eg. [["pyr_soma", "pyr_basal"], ["pyr_apical", "inn_soma", "inn_dendrite"], ...]. See run
+                        for all quantities that are available.
+        rec_dt:         Time resolution for recording
+        vals_per_epoch: Try to have such many validation chunks per epoch. Actual number will be printed by code.
+        reset_weights:  Randomly reinitialize weights before training
+        info_update:    Print info about remaining time after info_update patterns
+        metric:         Metric to be used for validation
+        breadcrumbs:    List of epoch indices after which network weights will be saved. Can include Zero to save
+                        initial weights.
+
+        Returns
+        -------
+        Like run but last return value (val_res in run) is replaced by list containing all validation results, where a
+        row is given by [training patterns see so far, mse, metric].
+        '''
 
         assert len(X_train) > vals_per_epoch
         assert len(X_train) == len(Y_train)
@@ -470,6 +598,7 @@ class Net:
             assert (len(Y_train.shape) == 1 and n_out == 1) or Y_train.shape[1] == n_out
             assert (len(Y_val.shape) == 1 and n_out == 1) or Y_val.shape[1] == n_out
 
+        # try to split training set to have vals_per_epoch validations per epoch
         len_split_train = round(len(X_train) / vals_per_epoch)  # validation after each split
         vals_per_epoch = len(X_train) // len_split_train
         print("%d validations per epoch" % (vals_per_epoch))
@@ -479,7 +608,7 @@ class Net:
 
         breadcrumbs_ind = None
         if breadcrumbs is not None:
-            breadcrumbs_ind = np.clip(len_per_ep*np.array(breadcrumbs)-1, a_min=0, a_max=None)
+            breadcrumbs_ind = np.clip(len_per_ep*np.array(breadcrumbs)-1, a_min=0, a_max=None) # last pattern index of corresponding epoch
             print(breadcrumbs_ind)
 
         r_in_seq = np.zeros((length, n_features))
@@ -493,11 +622,15 @@ class Net:
         nudging_on = np.ones((length, 1), dtype=dtype)
         val_idc = np.zeros((len(val_res), val_len))  # indices of validation patterns
 
+        # per epoch training and validation chunks will alternate. Each epoch starts with a training chunks and ends
+        # with a validation chunk (if vals_per_epch>0). Accordingly, the last training chunk might differ in size from
+        # the previous ones (if len(X_train)/vals_per_epoch does not give an integer).
         for n in range(n_epochs):
             perm_train = np.random.permutation(len(X_train))
             left = n * len_per_ep
             left_tr = 0
             for k in range(vals_per_epoch):
+                # start with a training block
                 if k == vals_per_epoch - 1:
                     right_tr = len(X_train)
                 else:
@@ -509,6 +642,8 @@ class Net:
                         perm_train[left_tr:right_tr]]] = u_high  # enforce Y_train is an integer array!
                 else:
                     target_seq[left:right] = Y_train[perm_train[left_tr:right_tr]]
+
+                # add validation block
                 perm_val = np.random.permutation(len(X_val))[:val_len]
                 left = right
                 right = left + val_len
@@ -527,14 +662,20 @@ class Net:
         target_seq = np.hstack((target_seq, nudging_on))
 
         ret = self.run(r_in_seq, trgt_seq=target_seq, reset_weights=reset_weights, val_len=val_len, metric=metric,
-                       rec_pots=rec_pots, rec_dt=rec_dt, info_update=info_update, breadcrumbs=breadcrumbs_ind)
+                       rec_quants=rec_quants, rec_dt=rec_dt, info_update=info_update, breadcrumbs=breadcrumbs_ind)
         val_res[:, 1:] = ret[-1]  # valres
 
         return ret[:-1] + tuple([val_res])
 
 
 class Tracker:
-    '''tracks and records changes in target array. Records length*compress_len samples, compressed (averaged) into length samples'''
+    '''
+    Tracks/records changes in 'target' array. Records 'length'*'compress_len' samples,
+     compressed (averaged) into 'length' samples. The result is stored in 'data'.
+     Note that the first value in the 'data' is already the average of multiple values of the target array.
+     If 'compress_len' is not 1 the initial value of 'target' is therefore not equal to the first entry in 'data'.
+     After recording call finalize to also add the remaining data in buffer to 'data' (finish the last compression).
+     '''
 
     def __init__(self, length, target, compress_len):
         self.target = target
@@ -564,7 +705,7 @@ def soft_relu(x, thresh=15):
     res[ind] = np.log(1 + np.exp(x[ind]))
     return res
 
-# faster
+# faster than the stable version
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
@@ -588,6 +729,9 @@ def time_str(sec):
 
 
 def ewma(data, window):
+    '''
+    Exponentially weighted moving average
+    '''
     alpha = 2 / (window + 1.0)
     alpha_rev = 1 - alpha
     n = data.shape[0]
@@ -601,6 +745,7 @@ def ewma(data, window):
     return out
 
 
+# accuracy metric
 def accuracy(pred, true):
     pred_class = np.argmax(pred, axis=1)
     true_class = np.argmax(true, axis=1)
@@ -618,14 +763,17 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
     # training set
     X_train = np.random.sample((N, N_in))
     X_val = np.random.sample((200, N_in))
+    # network params
     act = soft_relu
     ga, gsom = 0.8, 0.8
     gb, gd = 1, 1
     gl = 0.1
+    # teacher network
     teacher = lambda r_in: gb / (gl + gb) * np.matmul(W_21, act(gb / (gl + gb + ga) * np.matmul(W_10, r_in.T))).T
     Y_train = teacher(X_train)
     Y_val = teacher(X_val)
 
+    # network parameter dictionary (see report for meaning)
     params = {"dims": [N_in, N_hidden, N_out], "dt": 0.1, "gl": gl, "gb": gb, "ga": ga, "gd": gd, "gsom": gsom,
               "eta": {"up": [0.01, 0.005], "pi": [0.01, 0], "ip": [0.01, 0]},
               "bias": {"on": False, "val": 0.0},
@@ -633,17 +781,17 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
               "out_lag": 3 * 10, "tau_0": 3, "learning_lag": 0, "reset_deltas": False}
     net = Net(params, act)
 
-    # does self-predicting state emerge?
-    rec_pots = [["pyr_soma", "pyr_apical", "inn_soma", "W_up", "W_ip", "W_pi"],
+    # Record a few potentials and weights to see if self-predicting state emerges
+    rec_quants = [["pyr_soma", "pyr_apical", "inn_soma", "W_up", "W_ip", "W_pi"],
                 ["pyr_soma", "W_up"]]
 
-    # test before learning
+    # get a test shot of the output potentials before learning
     print("-----Test before learning-----")
     r_in_seq = np.random.sample((20, N_in))
     target_seq = np.hstack((teacher(r_in_seq), np.zeros((len(r_in_seq), 1))))
     rec_test, T, r_in_test, u_target_test, out_seq_test, val_res_test = net.run(r_in_seq, trgt_seq=target_seq,
                                                                                 learning_off=True, val_len=1,
-                                                                                rec_pots=rec_pots, rec_dt=1)
+                                                                                rec_quants=rec_quants, rec_dt=1)
     plt.title("Test run before learning")
     plt.plot(T, u_target_test[:, 0], label="$u_{target}[0]$")
     plt.plot(T, rec_test[-1]["pyr_soma"].data[:, 0], label="$u_{out}[0]$")
@@ -657,7 +805,7 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
 
     '''
     print("-----Pre-training-----")
-    records, T, r_in, out_seq = net.run(np.random.sample((10*N, N_in)), rec_pots=rec_pots, rec_dt=1000)
+    records, T, r_in, out_seq = net.run(np.random.sample((10*N, N_in)), rec_quants=rec_quants, rec_dt=1000)
 
     plt.title("Lateral Weights pre-training")
     plt.semilogy(T / 100, np.sum((records[0]["W_ip"].data - records[1]["W_up"].data) ** 2, axis=(1, 2)),
@@ -675,7 +823,7 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
     records, T, r_in, u_trgt, out_seq, val_res = net.train(X_train, Y_train, X_val, Y_val, n_epochs=n_epochs,
                                                            val_len=8,
                                                            n_out=N_out, classify=False, vals_per_epoch=10,
-                                                           rec_pots=rec_pots, rec_dt=1000)
+                                                           rec_quants=rec_quants, rec_dt=1000)
 
     # plot exponential moving average of validation error
     plt.title("Validation error during training")
@@ -697,6 +845,7 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
     plt.savefig("plots/PyraLNet/mimic_task/lateral_weights_during.png")
     plt.show()
 
+    # How do the forwards weight evolve?
     plt.figure(figsize=(12, 8))
     plt.title("Forward Weights Evolution")
     T_max = T[-1] / 100
@@ -724,7 +873,7 @@ def mimic_task(N=1000, n_epochs=10, N_in=2, N_hidden=3, N_out=2):
     target_seq = np.hstack((teacher(r_in_seq), np.zeros((len(r_in_seq), 1))))
     rec_test, T, r_in_test, u_target_test, out_seq_test, val_res_test = net.run(r_in_seq, trgt_seq=target_seq,
                                                                                 learning_off=True, val_len=1,
-                                                                                rec_pots=rec_pots, rec_dt=1)
+                                                                                rec_quants=rec_quants, rec_dt=1)
 
     plt.title("Test run")
     plt.plot(T, u_target_test[:, 0], label="$u_{target}[0]$")
@@ -779,7 +928,7 @@ def yinyang_task(N_train=6000, N_test=600, n_epochs=45, N_hidden=120, mul=0.2):
 
 
 # cluster version
-
+# params["model"] is the usual params dictionary. Other entries are meta params like training data size (see Scheduler.py)
 def run_yinyang(params, name, dir):
     X_train, Y_train = Dataset.YinYangDataset(size=params["N_train"], flipped_coords=True, seed=params["seed"])[:]
     X_val, Y_val = Dataset.YinYangDataset(size=params["N_val"], flipped_coords=True, seed=None)[:]
@@ -796,15 +945,15 @@ def run_yinyang(params, name, dir):
         net.reflect()
 
     breadcrumbs = params["breadcrumbs"] if "breadcrumbs" in params else None
-    rec_pots = [["W_ip", "W_pi"], ["W_up"]] if params["track_sps"] else None
+    rec_quants = [["W_ip", "W_pi"], ["W_up"]] if params["track_sps"] else None
 
     ret = net.train(X_train, Y_train, X_val, Y_val,n_epochs=params["N_epochs"],
                         val_len=params["val_len"], vals_per_epoch=params["vals_per_epoch"],
                         n_out=3, classify=True, u_high=1.0, u_low=0.1, metric=accuracy,
-                        rec_pots=rec_pots, rec_dt=1000 if rec_pots is not None else 0,
+                        rec_quants=rec_quants, rec_dt=1000 if rec_quants is not None else 0,
                         breadcrumbs=breadcrumbs)
 
-    if rec_pots is not None:
+    if rec_quants is not None:
         records, T, r_in, u_trgt = ret[0], ret[1], ret[2], ret[3]
     if breadcrumbs is not None:
         weights = ret[-3]
@@ -875,6 +1024,7 @@ CLUSTER = False
 if __name__ == "__main__":
 
     if CLUSTER:
+        # load params from configuration file (see Scheduler.py)
         import argparse, json
 
         parser = argparse.ArgumentParser()

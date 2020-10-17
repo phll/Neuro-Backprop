@@ -1,0 +1,17 @@
+\begin{thebibliography}{1}
+
+\bibitem{code}
+Paul Hill.
+\newblock implementation source-files: some-site.html, 2020.
+
+\bibitem{sac_senn}
+João Sacramento, Rui~Ponte Costa, Yoshua Bengio, and Walter Senn.
+\newblock Dendritic error backpropagation in deep cortical microcircuits.
+\newblock 2017.
+
+\bibitem{urb_senn}
+Robert Urbanczik and Walter Senn.
+\newblock Learning by the dendritic prediction of somatic spiking.
+\newblock {\em Neuron}, 81(3):521 -- 528, 2014.
+
+\end{thebibliography}

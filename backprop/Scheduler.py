@@ -5,13 +5,18 @@ import subprocess
 import os
 from sklearn.model_selection import ParameterSampler
 
-nodes_per_job = 1
-cores_per_job = 20
 
-name = "yinyang_pyralnet_vary_llag_55ms_reset_deltas"
-config = "runs/"+name+"/config/" # params for each execution
+################################################################################
+### Read README to learn about the the job/file organisation for the cluster ###
+################################################################################
+
+nodes_per_job = 1
+cores_per_job = 20 # bundle 20 runs (with different params) into one job
+
+name = "yinyang_pyralnet_vary_llag_55ms_reset_deltas" # everything goes here
+config = "runs/"+name+"/config/" # save params for each run in config file
 results = "runs/"+name+"/results/" # results will go here
-tmp = "runs/"+name+"/tmp/" #job files (config files per job)
+tmp = "runs/"+name+"/tmp/" #job files (list of all config files per job)
 
 # prepare file structure
 print("Delete all existing files in %s. Continue? "%(name), end='')
@@ -25,23 +30,24 @@ os.system('rm -rf %s*'%(results))
 
 Path(tmp).mkdir(exist_ok=True)
 os.system('rm -rf %s*'%(tmp))
+# initialize result file
 f = open(results+"results.txt", "x")
 f.write("id\t\t\tlast val\t\tval acc\t\ttest acc\n")
 f.close()
 
-#copy files for reproduction
+#copy import files for reproduction
 os.system('cp %s %s'%(__file__, "runs/"+name+"/Scheduler.py"))
 os.system('cp %s %s'%("PyraLNet.py", "runs/"+name+"/PyraLNet.py"))
 os.system('cp %s %s'%("job_pyral.sh", "runs/"+name+"/job_pyral.sh"))
 
-# build run configs and store them in 'config'
+# build run configs for all the parameters you want to tune
 runs = []
 seeds = [2304, 3446, 123, 4354, 8956, 283, 384, 78, 2, 6566]
 run_id = 0
 
 print("build config files")
 
-for hp in [{"ga": 0.28, "gsom": 0.34, "l_1": 6.1, "l_2_mul": 0.00012, "ip_mul": 2.0}]:
+for hp in [{"ga": 0.28, "gsom": 0.34, "l_1": 6.1, "l_2_mul": 0.00012, "ip_mul": 2.0}]: # go through hyperparams
     ga = hp["ga"]
     gsom = hp["gsom"]
     l_1 = hp["l_1"]
@@ -49,10 +55,14 @@ for hp in [{"ga": 0.28, "gsom": 0.34, "l_1": 6.1, "l_2_mul": 0.00012, "ip_mul": 
     ip_mul = hp["ip_mul"]
 
     for llag in np.linspace(0, 30, 30*2):
-        for seed in seeds:
+        for seed in seeds: # go through seeds
             run_name = "%.2f_%.2f_%.2e_%.2e_%.1f__%d"%(ga, gsom, l_1, l_2_mul*l_1, llag, run_id)
             run_id += 1
 
+            # init_sps: Initialize network in self-predicting-state (sps)
+            # track_sps: Track potentials and weights to observe evolution of sps
+            # remaining: see PyraLNet.py train()
+            # model: see report for description of network parameters
             params = {"name": run_name, "seed": seed, "init_sps": True, "track_sps": False, "N_train": 6000,
                       "N_test": 600, "N_val": 600, "N_epochs": 45, "val_len": 100, "vals_per_epoch": 1,
                       "model": {"dims": [4, 120, 3], "act": "sigmoid", "dt": 0.1, "gl": 0.1, "gb": 1.0,
@@ -65,11 +75,13 @@ for hp in [{"ga": 0.28, "gsom": 0.34, "l_1": 6.1, "l_2_mul": 0.00012, "ip_mul": 
                                 "t_pattern": 55,
                                 "out_lag": 45, "tau_0": 3, "learning_lag": llag, "reset_deltas": True}}
 
+            # create config file for this run
             with open('%s.conf'%(config+run_name), 'w') as file:
                 file.write(json.dumps(params))
 
             runs +=[run_name]
 
+# now bundle all runs into jobs
 jobs = int(np.ceil(len(runs)/cores_per_job))
 print("submit %d jobs."%(jobs))
 
