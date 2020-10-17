@@ -13,6 +13,15 @@ dtype = pyral.dtype
 class Layer(pyral.Layer):
 
     def update(self, r_in, u_next, dir_up):
+        '''
+        compute pyramidial and interneuron potentials by means of steady-state solution.
+        If dir_up, compute pyramidials first, else interneurons first.
+        Parameters
+        ----------
+        r_in:       input rates from previous layer
+        u_next:     soma potentials of paramidals from next layer (may be None)
+        dir_up:     direction of propagation (determines order in which pyramidals and internneurons are updated)
+        '''
         #### input rates
         r_pyr = np.zeros(self.u_pyr["soma"].shape[0] + self.bias, dtype=dtype)
         r_in_buf = np.zeros(len(r_in) + self.bias, dtype=dtype)
@@ -38,6 +47,14 @@ class Layer(pyral.Layer):
         pass
 
     def update_weights(self, r_in, n_exposures, reset_deltas=False):
+        '''
+        Update weights for one timestep dT = t_pattern/n_exposures.
+        Parameters
+        ----------
+        r_in:           input rates from previous layer
+        n_exposures:    number of weight updates per pattern -> timestep dT = t_pattern / n_exposures
+        reset_deltas:   reset Deltas (weight update matrices) before update
+        '''
         # input rates
         r_pyr = np.zeros(self.u_pyr["soma"].shape[0] + self.bias, dtype=dtype)
         r_in_buf = np.zeros(len(r_in) + self.bias, dtype=dtype)
@@ -84,7 +101,9 @@ class Layer(pyral.Layer):
 
 
 class OutputLayer(pyral.OutputLayer):
-
+    '''
+    Output layer -> see Layer for more info about the methods.
+    '''
     def update(self, r_in, u_target):
         ### input rates
         r_in_buf = np.zeros(len(r_in) + self.bias, dtype=dtype)
@@ -126,6 +145,10 @@ class OutputLayer(pyral.OutputLayer):
 
 
 class Net(pyral.Net):
+    '''
+    Steady-State approximation of PyraLNet. Receives the *same* parameters as PyraLNet! (for comparison also seemingly
+    unused params like learning-lag should be given, as the shorter learning-time will be accounted for)
+    '''
 
     def __init__(self, params, act=None, seed=None):
         if seed is not None:
@@ -157,8 +180,24 @@ class Net(pyral.Net):
 
 
     def update(self, r_in, u_target, n_passes=2, n_exposures=10, learning_on=True, records=None):
+        '''
+        Compute updates from one pattern (r_in, u_trgt). The pattern is presented n_exposures time. After each
+        such step the potentials are updated by means of the steady-state approximation and then the weights are updated
+        with timestep dT = t_pattern / n_exposures.
+        Parameters
+        ----------
+        r_in:           input rate vector
+        u_target:       target potential vector (may be None)
+        n_passes:       number of up and downwards-passing cycles to compute potentials (see report)
+        n_exposures:    number of weight updates -> weight update time step is dT = t_pattern / n_exposures
+        learning_on:    switch learning off or on
+        records:        list of quantities to record (only once per pattern after all n_exposures updates)
+                        If provided, a list for each layer, starting from the hidden layer,
+                        is expected, eg. [["pyr_soma", "pyr_basal"], ["pyr_apical", "inn_soma", "inn_dendrite"], ...].
+                        See implementation of run for which quantities are available
+        '''
         for k in range(n_exposures):
-            #update potentials
+            # update potentials
             for i in range(n_passes):
                 self.layer[0].update(r_in, None if i==0 else self.layer[1].u_pyr["soma"], dir_up=True)
                 for n in range(1, len(self.layer) - 1):
@@ -168,7 +207,7 @@ class Net(pyral.Net):
                     self.layer[n].update(self.act(self.layer[n - 1].u_pyr["soma"]), self.layer[n + 1].u_pyr["soma"], dir_up=False)
                 self.layer[0].update(r_in, self.layer[1].u_pyr["soma"], dir_up=False)
 
-            #update weights
+            # update weights
             if learning_on:
                 self.layer[0].update_weights(r_in, n_exposures=n_exposures, reset_deltas=(self.params["reset_deltas"] and k==0))
                 for n in range(1, len(self.layer)):
@@ -181,6 +220,35 @@ class Net(pyral.Net):
 
     def run(self, in_seq, trgt_seq=None, reset_weights=False, val_len=0, n_passes=2, n_exposures=10, metric=None,
             rec_pots=None, rec_dn=1, learning_off=False, info_update=100):
+        '''
+        Run a full simulation for the whole sequence of input patterns in in_seq.
+        Nudging can be switched on or off per pattern.
+        If val_len > 0 and trgt_seq is not None, target patterns with disabled nudging are used for validation.
+        Parameters
+        ----------
+        in_seq:         sequence of input patterns. Expects N x dim_0 (input layer size) array.
+        trgt_seq:       sequence of target potentials (might be None). Expects N x (dim_out+1) array. Last column has
+                        to take values in {0,1}, determining if nudging is switched on (1) or off (0) for each pattern.
+        reset_weights:  randomly reset weight connections before starting (soma potentials are always reset to zero)?
+        val_len:        if val_len > 0 and trgt_seq is not None all patterns for which trgt_seq[:,-1] is Zero are used
+                        for validation. In this case, chunks of length val_len for which trgt_seq[:,-1]==0 are expected.
+                        During validation learning and noise is always disabled.
+        n_passes:       see SteadNet.Net.update
+        n_exposures:    see SteadNet.Net.update
+        metric:         metric used during validation
+        rec_quants:     list of all quantities to track. If provided, a list for each layer, starting from the hidden layer,
+                        is expected, eg. [["pyr_soma", "pyr_basal"], ["pyr_apical", "inn_soma", "inn_dendrite"], ...].
+        rec_dn:         specifies resolution for tracking of rec_quants (number of patterns to average over)
+        learning_off:   switch learning off
+        info_update:    print info about remaining time after each info_update patterns
+
+        Returns
+        -------
+        [(recorded quantities; if rec_quants!=None),
+         sequence of outputs (averaged soma potentials of output layer) with size N x dim_out,
+         (N x 2 array containing the validation results [output layer MSE, metric]; if val_len>0)]
+        '''
+
         #### prepare run
         print("each input pattern is presented %d times -> dT/tau_w: %.3f"%(n_exposures, (self.params["t_pattern"] - self.params["learning_lag"]) /(self.params["tau_w"] * n_exposures)))
         print("effective learning rate multiplier: %f"%((self.params["t_pattern"] - self.params["learning_lag"]) / n_exposures))
@@ -236,10 +304,12 @@ class Net(pyral.Net):
         for i in range(len(in_seq)):
             nudging_on = trgt_seq[i, -1] if trgt_seq is not None else False
             if not nudging_on and val_len > 0:
+                # this patterns is for validation! (val_idx will be >=0 during validation)
                 val_idx += 1
             if trgt_seq is not None:
                 u_trgt = trgt_seq[i, :-1]
-                self.update(in_seq[i], u_trgt if nudging_on else None, n_passes, n_exposures, learning_on=not learning_off, records=records)
+                self.update(in_seq[i], u_trgt if nudging_on else None, n_passes, n_exposures,
+                            learning_on=not learning_off and val_idx<0, records=records)
                 out_seq[i] = self.layer[-1].u_pyr["soma"]
             else:
                 self.update(in_seq[i], None, n_passes, n_exposures, learning_on=not learning_off, records=records)
@@ -258,7 +328,7 @@ class Net(pyral.Net):
                     print("%s: %f" % (name, mres))
                     vres[1] = mres
                 val_res += [vres]
-                val_idx = -1
+                val_idx = -1 # disable validation mode again
 
             # print some info
             if i > 0 and i % info_update == 0:
@@ -281,6 +351,9 @@ class Net(pyral.Net):
     def train(self, X_train, Y_train, X_val, Y_val, n_epochs, val_len, n_out, classify, u_high=1.0,
               u_low=0.1, n_passes=2, n_exposures=10, rec_pots=None, rec_dn=1, vals_per_epoch=1, reset_weights=False,
               info_update=1000, metric=None):
+        '''
+        see PyraLNet.Net.train and SteadNet.Net.run (for the new params)
+        '''
 
         assert len(X_train) > vals_per_epoch
         assert len(X_train) == len(Y_train)
@@ -361,7 +434,13 @@ class Net(pyral.Net):
 
     def train_long(self, X_train, Y_train, X_val, Y_val, n_epochs, val_len, n_out, classify, u_high=1.0,
               u_low=0.1, n_passes=2, n_exposures=1, vals_per_epoch=1, info_update=1000, metric=None):
-
+        '''
+        Version of SteadNet.Net.train for long datasets. run() is called per epoch not once for all epochs.
+        Returns
+        -------
+        returns [SteadNet.Net.run from last epoch without last entry,
+         validation results like train() concatenated for all epochs]
+        '''
         assert len(X_train) > vals_per_epoch
         assert len(X_train) == len(Y_train)
         assert len(X_val) == len(Y_val)
@@ -439,6 +518,20 @@ class Net(pyral.Net):
 
 
 def seq_to_trace(seq, dT):
+    '''
+    Transforms a sequence into a 'step-trace' with step size dT, i.e. each value in seq will appear twice in the
+    output trace: seq = [s_0, s_1, s_2, ...] -> T = [0, dT, dT, 2dT, 2dT, 3dT, 3dT, ...],
+     trace = [s_0, s_0, s_1, s_1, s_2, s_2, ...]
+    Parameters
+    ----------
+    seq:        input sequence
+    dT:         duration of each step for which output signal is constant and takes corresponding value of seq
+
+    Returns
+    -------
+    [T,
+    trace]
+    '''
     T = np.zeros(len(seq) * 2)
     T[np.arange(len(seq)) * 2] = np.arange(len(seq))*dT
     T[np.arange(len(seq)) * 2 + 1] = np.arange(1, len(seq)+1)*dT
@@ -448,10 +541,12 @@ def seq_to_trace(seq, dT):
     return T, trace
 
 
+# compare SteadNet with PyraLNet without plasticity (-> compare potentials)
 def stead_vs_sim(N=1000, seed=45, reflect=False):
     Path("plots/SteadNet/stead_vs_sim").mkdir(parents=True, exist_ok=True)
 
     # how well does SteadNet predict fix-points of PyraLNet?
+
     X_train, Y_train = Dataset.YinYangDataset(size=N, flipped_coords=True, seed=seed)[:]
     params = {"dims": [4, 120, 3], "dt": 0.1, "gl": 0.1, "gb": 1.0, "ga": 0.8, "gd": 1.0,
               "gsom": 0.8,
@@ -464,6 +559,7 @@ def stead_vs_sim(N=1000, seed=45, reflect=False):
     sim_net = pyral.Net(params, act=pyral.sigmoid)
     if reflect:
         stead_net.reflect()
+    # copy weights from SteadNet to PyraLNet
     for i in range(len(stead_net.layer) - 1):
         sim_net.layer[i].W_up = stead_net.layer[i].W_up
         sim_net.layer[i].W_ip = stead_net.layer[i].W_ip
@@ -471,6 +567,7 @@ def stead_vs_sim(N=1000, seed=45, reflect=False):
         sim_net.layer[i].W_down = stead_net.layer[i].W_down
     sim_net.layer[-1].W_up = stead_net.layer[-1].W_up
 
+    # run PyraLNet for on a couple of patterns and record potentials
     rec_pots = [["pyr_soma", "inn_soma"], ["pyr_soma"]]
     target_seq = np.ones((len(Y_train), 3)) * 0.1
     target_seq[np.arange(len(Y_train)), 1 * Y_train] = 1.0
@@ -480,6 +577,7 @@ def stead_vs_sim(N=1000, seed=45, reflect=False):
     c = ["blue", "green", "orange"]
     ls = ["-", ":", "--"]
     plt.figure(figsize=(9, 6))
+    # run SteadNet (with different param n_passes) for on a couple of patterns and record potentials
     for i, n_passes in enumerate([1, 2, 4]):
         records_stead, _ = stead_net.run(X_train, trgt_seq=target_seq, learning_off=True, rec_pots=rec_pots, rec_dn=1, n_exposures=1, n_passes=n_passes)
 
@@ -490,6 +588,7 @@ def stead_vs_sim(N=1000, seed=45, reflect=False):
         u_sim = records_sim[1]["pyr_soma"].data.reshape(-1, 100, 3)[:, -1, :]
         plt.plot(np.sqrt(np.mean((u_sim-records_stead[1]["pyr_soma"].data) ** 2 / np.mean(u_sim, axis=0) ** 2, axis=1)), c=c[2], ls=ls[i])
 
+    # compare both methods
     plt.yscale("log")
     plt.ylabel("RMSE $u_{sim}-u_{stead}$ / RMS $u_{sim}$")
     plt.xlabel("pattern")
@@ -507,10 +606,10 @@ def stead_vs_sim(N=1000, seed=45, reflect=False):
     plt.show()
 
 
+# compare SteadNet with PyraLNet with plasticity (-> compare weights)
 def stead_vs_sim_learning(N=5000, seed=45, reflect=False):
     Path("plots/SteadNet/stead_vs_sim").mkdir(parents=True, exist_ok=True)
 
-    # how well does SteadNet predict fix-points of PyraLNet?
     X_train, Y_train = Dataset.YinYangDataset(size=N, flipped_coords=True, seed=seed)[:]
     params = {"dims": [4, 120, 3], "dt": 0.1, "gl": 0.1, "gb": 1.0, "ga": 0.8, "gd": 1.0,
               "gsom": 0.8,
@@ -523,12 +622,14 @@ def stead_vs_sim_learning(N=5000, seed=45, reflect=False):
     sim_net = pyral.Net(params, act=pyral.sigmoid)
     if reflect:
         sim_net.reflect()
+    # save initial weights to init each network
     W0_up = sim_net.layer[0].W_up.copy()
     W0_ip = sim_net.layer[0].W_ip.copy()
     W0_pi = sim_net.layer[0].W_pi.copy()
     W0_down = sim_net.layer[0].W_down.copy()
     W1_up = sim_net.layer[-1].W_up.copy()
 
+    # run PyraLNet for a bunch of patterns and records weights
     rec_pots = [["W_up", "W_ip"], ["W_up"]]
     target_seq = np.ones((len(Y_train), 3)) * 0.1
     target_seq[np.arange(len(Y_train)), 1 * Y_train] = 1.0
@@ -538,7 +639,9 @@ def stead_vs_sim_learning(N=5000, seed=45, reflect=False):
     c = ["C0", "C1", "C2"]
     ls = ["-", ":", "--"]
     plt.figure(figsize=(9, 6))
+    # run PyraLNet (with different param n_exposures) for a bunch of patterns and records weights
     for i, n_exposures in enumerate([1, 4, 8]):
+        # init with the same weights
         stead_net.layer[0].W_up = W0_up.copy()
         stead_net.layer[0].W_ip = W0_ip.copy()
         stead_net.layer[0].W_pi = W0_pi.copy()
@@ -554,6 +657,7 @@ def stead_vs_sim_learning(N=5000, seed=45, reflect=False):
         W_sim = records_sim[1]["W_up"].data.reshape(-1, 100, 3, 120)[:, -1]
         plt.plot(np.sqrt(np.mean((W_sim-records_stead[1]["W_up"].data) ** 2 / np.mean(W_sim ** 2), axis=(1,2))), c=c[2], ls=ls[i])
 
+    # compare weights
     plt.yscale("log")
     plt.xlabel("pattern")
     plt.ylabel("RMSE $W_{sim}-W_{stead}$ / RMS $W_{sim}$")

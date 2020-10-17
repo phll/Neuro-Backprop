@@ -324,7 +324,9 @@ class Net:
         r_in:           input rate vector
         u_target:       target potential vector (might be None)
         learning_on:    switch learning on or off
-        records:        list of quantities to be recorded
+        records:        list of all quantities to track. If provided, a list for each layer, starting from the hidden layer,
+                        is expected, eg. [["pyr_soma", "pyr_basal"], ["pyr_apical", "inn_soma", "inn_dendrite"], ...]
+                        See implementation of run for which quantities are available
         noise_on:       switch noise source in network dynamics on or off
 
         '''
@@ -472,7 +474,7 @@ class Net:
                 # lowpass target potentials and update network
                 if trgt_seq is not None:
                     u_trgt[:] += self.params["dt"] / self.params["tau_0"] * (trgt_seq[seq_idx, :-1] - u_trgt)
-                    if rec_dt > 0:
+                    if rec_dt > 0:# run PyraLNet for a bunch of patterns and records weights
                         u_trgt_trc.record()
                     l_on = learning_on and val_idx < 0 # no learning during validation
                     self.update(r_in, u_trgt if nudging_on else None, records=records, learning_on=l_on,
