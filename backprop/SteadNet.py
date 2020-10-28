@@ -219,7 +219,7 @@ class Net(pyral.Net):
                     r.record()
 
     def run(self, in_seq, trgt_seq=None, reset_weights=False, val_len=0, n_passes=2, n_exposures=10, metric=None,
-            rec_pots=None, rec_dn=1, learning_off=False, info_update=100):
+            rec_quants=None, rec_dn=1, learning_off=False, info_update=100):
         '''
         Run a full simulation for the whole sequence of input patterns in in_seq.
         Nudging can be switched on or off per pattern.
@@ -272,9 +272,9 @@ class Net(pyral.Net):
         for i in range(len(self.layer)):
             l = self.layer[i]
             l.reset(reset_weights)
-            if rec_pots is None:
+            if rec_quants is None:
                 continue
-            rp = rec_pots[i]
+            rp = rec_quants[i]
             rcs = {}
             if "pyr_soma" in rp:
                 rcs["pyr_soma"] = pyral.Tracker(rec_len, l.u_pyr["soma"], compress_len)
@@ -340,7 +340,7 @@ class Net(pyral.Net):
             for _, r in rcs.items(): r.finalize()
 
         ret = []
-        if rec_pots is not None:
+        if rec_quants is not None:
             ret += [records]
         ret += [out_seq]
         if val_len > 0:
@@ -349,7 +349,7 @@ class Net(pyral.Net):
 
 
     def train(self, X_train, Y_train, X_val, Y_val, n_epochs, val_len, n_out, classify, u_high=1.0,
-              u_low=0.1, n_passes=2, n_exposures=10, rec_pots=None, rec_dn=1, vals_per_epoch=1, reset_weights=False,
+              u_low=0.1, n_passes=2, n_exposures=10, rec_quants=None, rec_dn=1, vals_per_epoch=1, reset_weights=False,
               info_update=1000, metric=None):
         '''
         see PyraLNet.Net.train and SteadNet.Net.run (for the new params)
@@ -427,7 +427,7 @@ class Net(pyral.Net):
 
         ret = self.run(r_in_seq, trgt_seq=target_seq, n_passes=n_passes, n_exposures=n_exposures,
                        reset_weights=reset_weights, val_len=val_len, metric=metric,
-                       rec_pots=rec_pots, rec_dn=rec_dn, info_update=info_update)
+                       rec_quants=rec_quants, rec_dn=rec_dn, info_update=info_update)
         val_res[:, 1:] = ret[-1] #valres
 
         return ret[:-1] + tuple([val_res])
@@ -568,18 +568,18 @@ def stead_vs_sim(N=1000, seed=45, reflect=False):
     sim_net.layer[-1].W_up = stead_net.layer[-1].W_up
 
     # run PyraLNet for on a couple of patterns and record potentials
-    rec_pots = [["pyr_soma", "inn_soma"], ["pyr_soma"]]
+    rec_quants = [["pyr_soma", "inn_soma"], ["pyr_soma"]]
     target_seq = np.ones((len(Y_train), 3)) * 0.1
     target_seq[np.arange(len(Y_train)), 1 * Y_train] = 1.0
     target_seq = np.hstack((target_seq, np.zeros((len(Y_train), 1))))
-    records_sim, T, _, _, _ = sim_net.run(X_train, trgt_seq=target_seq, learning_off=True, rec_pots=rec_pots, rec_dt=1)
+    records_sim, T, _, _, _ = sim_net.run(X_train, trgt_seq=target_seq, learning_off=True, rec_quants=rec_quants, rec_dt=1)
 
     c = ["blue", "green", "orange"]
     ls = ["-", ":", "--"]
     plt.figure(figsize=(9, 6))
     # run SteadNet (with different param n_passes) for on a couple of patterns and record potentials
     for i, n_passes in enumerate([1, 2, 4]):
-        records_stead, _ = stead_net.run(X_train, trgt_seq=target_seq, learning_off=True, rec_pots=rec_pots, rec_dn=1, n_exposures=1, n_passes=n_passes)
+        records_stead, _ = stead_net.run(X_train, trgt_seq=target_seq, learning_off=True, rec_quants=rec_quants, rec_dn=1, n_exposures=1, n_passes=n_passes)
 
         u_sim = records_sim[0]["pyr_soma"].data.reshape(-1, 100, 120)[:,-1,:] # last value of pattern
         plt.plot(np.sqrt(np.mean((u_sim-records_stead[0]["pyr_soma"].data) ** 2 / np.mean(u_sim, axis=0) ** 2, axis=1)), c=c[0], ls=ls[i])
@@ -630,11 +630,11 @@ def stead_vs_sim_learning(N=5000, seed=45, reflect=False):
     W1_up = sim_net.layer[-1].W_up.copy()
 
     # run PyraLNet for a bunch of patterns and records weights
-    rec_pots = [["W_up", "W_ip"], ["W_up"]]
+    rec_quants = [["W_up", "W_ip"], ["W_up"]]
     target_seq = np.ones((len(Y_train), 3)) * 0.1
     target_seq[np.arange(len(Y_train)), 1 * Y_train] = 1.0
     target_seq = np.hstack((target_seq, np.ones((len(Y_train), 1))))
-    records_sim, _, _, _, _ = sim_net.run(X_train, trgt_seq=target_seq, rec_pots=rec_pots, rec_dt=1)
+    records_sim, _, _, _, _ = sim_net.run(X_train, trgt_seq=target_seq, rec_quants=rec_quants, rec_dt=1)
 
     c = ["C0", "C1", "C2"]
     ls = ["-", ":", "--"]
@@ -648,7 +648,7 @@ def stead_vs_sim_learning(N=5000, seed=45, reflect=False):
         stead_net.layer[0].W_down = W0_down.copy()
         stead_net.layer[-1].W_up = W1_up.copy()
 
-        records_stead, _ = stead_net.run(X_train, trgt_seq=target_seq, rec_pots=rec_pots, rec_dn=1, n_exposures=n_exposures, n_passes=2)
+        records_stead, _ = stead_net.run(X_train, trgt_seq=target_seq, rec_quants=rec_quants, rec_dn=1, n_exposures=n_exposures, n_passes=2)
 
         W_sim = records_sim[0]["W_up"].data.reshape(-1, 100, 120, 4)[:,-1] # last value of pattern
         plt.plot(np.sqrt(np.mean((W_sim-records_stead[0]["W_up"].data) ** 2 / np.mean(W_sim ** 2), axis=(1,2))), c=c[0], ls=ls[i])
@@ -767,4 +767,5 @@ def mnist_task():
     print("test set accuracy: %f" % (acc))
 
 
-yinyang_task(reset_deltas=True)
+if __name__ == "__main__":
+    yinyang_task(reset_deltas=True)
