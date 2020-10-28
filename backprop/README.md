@@ -21,9 +21,15 @@
 
 # Run Organisation and Scheduling on the Cluster
 A parameter sweep, a run, is scheduled in Scheduler.py. After specifying the name of the run, a corresponding directory is created in runs/, containing a results/, conf/ and tmp/ subdirectory.
+
 Then for each of the parameter sets a config file is created and saved to config/, identified by a unique name. 
+
 These sub-runs are bundled into jobs, where each job contains 20 sub-runs. Per job a `index`.job file is saved to tmp/. It contains a path to the results/ directory and the 20 paths to the .conf-files associated with this jobs.
+
 Furthermore, tmp/ also contains a list relating the job index (or ids) and the job-id returned by moab. This is necessary to keep track of the job states (check_jobs.py) during execution.
+
 Next, per job, moab is called with the right job_***.sh script, to be executed by the cluster, and the .job file as argument.
+
 The job-shell script will then call PyraLNet or SteadNet in a subprocesses for each config file given in the .job file it received as an argument by moab.
+
 Finally, PyraLNet or SteadNet script will execute with the specific parameters it was started with and writes the results to results/results.txt. 
