@@ -1,4 +1,4 @@
-# Dendritic Dortical Microcircuits approximating the Backpropagation Algorithm
+# Dendritic Cortical Microcircuits Approximating the Backpropagation Algorithm
 Implementation of [Dendritic error backpropagation in deep cortical microcircuits, Sacramento, Senn 2017](https://arxiv.org/abs/1801.00062) in Python. The code can be executed on a normal machine or on a cluster working with moab. A report of the project can be found under `report`.
 
 # File Structure
